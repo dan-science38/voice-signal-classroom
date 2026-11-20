@@ -321,9 +321,11 @@ function remoteShow(text,kind){remoteUi.heading.textContent=kind==='notice'?'職
 }
 document.getElementById('remoteClose').onclick=()=>remoteUi.overlay.hidden=true;
 async function applyRemote(cmd){if(!cmd||!cmd.id||executedRemoteIds.has(cmd.id))return;
- if(cmd.expires<Date.now())return;
+ // Server filters expired commands; do not compare against the classroom PC clock.
+
  executedRemoteIds.add(cmd.id);if(executedRemoteIds.size>150)executedRemoteIds.delete(executedRemoteIds.values().next().value);
  let ok=true;
+ remoteUi.status.textContent='● 命令を受信：'+cmd.type;
  try{switch(cmd.type){
  case 'instruction':case 'notice':remoteShow(String(cmd.text||''),cmd.type);break;
  case 'set_start':if(!setTimerDuration(cmd.seconds))throw Error('Invalid duration');$('timerToggle').click();break;
@@ -332,13 +334,14 @@ async function applyRemote(cmd){if(!cmd||!cmd.id||executedRemoteIds.has(cmd.id))
  case 'reset':$('timerReset').click();break;
  default:throw Error('Invalid command');
  }}catch(e){ok=false;remoteUi.status.textContent='操作失敗：'+e.message}
- try{await remoteRequest('ack','POST',{id:cmd.id,ok})}catch(e){remoteUi.status.textContent='受信確認を送れません：'+e.message}
+ try{await remoteRequest('ack','POST',{id:cmd.id,ok});remoteUi.status.textContent=ok?'● 指示実行済み：'+cmd.type:'● 指示実行失敗：'+cmd.type;}catch(e){remoteUi.status.textContent='受信確認を送れません：'+e.message}
 }
 async function remoteTick(){if(!remoteOnline||remoteBusy)return;remoteBusy=true;try{
  const snapshot={level:active&&!healthFault?current:0,signal:active&&!healthFault?(monitorPaused?'paused':signal):'idle',count:warningCount,quietRate:scoreTotal?100*scoreGood/scoreTotal:100,rating:$('rating').textContent,timerRemaining:timerRunning?Math.max(0,Math.ceil((timerEnd-Date.now())/1000)):remaining,timerRunning,mic:active&&!healthFault,paused:monitorPaused,instruction:lastRemoteInstruction,instructionUntil:lastInstructionUntil};
  await remoteRequest('state','POST',snapshot);
  const result=await remoteRequest('sync');
- remoteUi.status.textContent='● 職員室と通信中';remoteUi.status.style.color='#74f4b7';
+ if(!(result.commands||[]).length){remoteUi.status.textContent='● 職員室と通信中（命令待機）';}
+ remoteUi.status.style.color='#74f4b7';
  for(const cmd of result.commands||[])await applyRemote(cmd);
  }catch(e){remoteUi.status.textContent='● 通信停止：'+e.message;remoteUi.status.style.color='#ffbd75'}finally{remoteBusy=false}}
 function remoteDisconnect(){remoteOnline=false;clearInterval(remoteTimer);remoteTimer=null;remoteUi.status.textContent='● 遠隔接続なし';remoteUi.status.style.color='#c7cca7'}
