@@ -9,6 +9,14 @@
 <section class="panel"><h2>送信状況</h2><div id="commands" class="muted">履歴なし</div><p class="muted">送信済みだけでは実行完了ではありません。教室からの受信確認で「実行済み」になります。</p></section>
 </main><script>
 (()=>{'use strict';const $=id=>document.getElementById(id);let polling=null,configured=false,endpoint='',room='',token='',last=null,requests=0;const keyName='vsc-remote-config';try{const saved=JSON.parse(sessionStorage.getItem(keyName)||'{}');$('endpoint').value=saved.endpoint||$('endpoint').defaultValue;$('room').value=saved.room||$('room').defaultValue;$('key').value=saved.token||''}catch{}
+try{
+ const qr=new URLSearchParams(location.search),roomFromQR=qr.get('room'),endpointFromQR=qr.get('endpoint');
+ if(roomFromQR&&/^[a-zA-Z0-9_-]{1,50}$/.test(roomFromQR))$('room').value=roomFromQR;
+ if(endpointFromQR&&/^https:\/\/[^/\s]+$/.test(endpointFromQR))$('endpoint').value=endpointFromQR;
+ if(roomFromQR||endpointFromQR)$('reply').textContent='教室のQRコードから接続情報を読み込みました。管理者キーを入力して「接続」を押してください。';
+ // Remove pairing details from the address bar after processing.
+ if(roomFromQR||endpointFromQR)history.replaceState(null,'',location.pathname+location.hash);
+}catch{}
 function url(path){return endpoint+'/api/'+path+'?room='+encodeURIComponent(room)}
 async function api(path,method='GET',body){const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),6500);try{const r=await fetch(url(path),{method,headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:ctl.signal,cache:'no-store'});const data=await r.json();if(!r.ok||!data.ok)throw Error(data.error||('HTTP '+r.status));return data}finally{clearTimeout(timeout)}}
 function stateLabel(state){return {'green':'静粛','yellow':'注意','red':'警告','paused':'監視停止','idle':'待機'}[state]||'不明'}
