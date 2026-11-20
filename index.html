@@ -111,17 +111,24 @@ body.fullscreen .toast.show{flex:0 0 auto;padding:4px 9px;margin:5px 0}
 .cameraPanel.large .cameraTop{font-size:15px;padding:10px}
 .cameraPanel.large .cameraFooter{font-size:12px;padding:8px}
 @media(max-width:650px){.cameraPanel{width:min(245px,calc(100vw - 20px));left:10px;bottom:10px}.cameraPanel.large{width:94vw}}
+/* In fullscreen, the camera takes the left-rail history slot. The center alert and right controls stay untouched. */
+.fullscreen.camera-active .rail.left{grid-template-rows:auto auto auto minmax(0,1fr)}
+.fullscreen.camera-active .rail.left > section:last-of-type{display:none}
+.fullscreen .cameraPanel:not(.large){position:relative;inset:auto;left:auto;bottom:auto;transform:none;display:flex;flex-direction:column;width:100%;height:100%;min-height:0;max-height:none;border-radius:5px;box-shadow:inset 0 0 12px #0b654c;grid-row:4}
+.fullscreen .cameraPanel:not(.large) .cameraViewport{aspect-ratio:auto;flex:1;min-height:0}
+.fullscreen .cameraPanel:not(.large) .cameraViewport video{object-fit:cover}
+.fullscreen .cameraPanel:not(.large) .cameraTop{font-size:clamp(10px,.8vw,12px);padding:5px 6px}
+.fullscreen .cameraPanel:not(.large) .cameraActions button{padding:2px 5px;font-size:11px}
+.fullscreen .cameraPanel:not(.large) .cameraFooter{font-size:9px;padding:4px 6px}
+.fullscreen .cameraPanel:not(.large) .cameraStamp{font-size:9px}
+.fullscreen .rail.left{overflow:hidden}
+
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="cameraToggle" type="button" aria-pressed="false">📷 カメラ ON</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
 <div id="recoveryBar" class="recoveryBar" hidden role="region" aria-label="前回の計測を復元"><div><strong>前回の授業データが残っています</strong><span id="recoveryDetail"></span><small>復元後、マイクは手動で再開始してください。タイマーは一時停止で復元します。</small></div><div class="recoveryActions"><button type="button" class="primary" id="recoverLesson">↶ データを復元</button><button type="button" id="discardRecovery">破棄して新規開始</button></div></div>
 <div class="remoteDock" id="remoteDock"><details><summary>◉ REMOTE / 遠隔接続　<span id="remoteStatus">● 遠隔接続なし</span></summary><div class="remoteControls"><label>Worker API URL<input id="remoteEndpoint" value="https://voice-signal-remote.schoolhub-lab.workers.dev" placeholder="https://....workers.dev" autocomplete="url"></label><label>教室ID<input id="remoteRoom" value="class-1" autocomplete="off"></label><label>教室キー<input id="remoteKey" type="password" placeholder="CLASSROOM_KEY" autocomplete="off"></label><button id="remoteConnect">接続</button><button id="remoteDisconnect">切断</button><a href="remote.html" target="_blank" rel="noopener" style="color:#97efbf">職員室モード ↗</a></div><small>教室キーはページ内に埋め込みません。入力後はこのタブのセッションに保存します。</small></details></div><div class="remoteCurrent" id="remoteInstruction" hidden></div>
 
-<div id="cameraPanel" class="cameraPanel" role="region" aria-label="教室内カメラ映像（この端末のみ）" hidden>
- <div class="cameraTop"><span>◉ LOCAL CAMERA / 教室映像</span><div class="cameraActions"><button id="cameraSize" type="button" aria-label="カメラ映像を拡大">⛶</button><button id="cameraClose" type="button" aria-label="カメラを停止">✕</button></div></div>
- <div class="cameraViewport"><video id="cameraVideo" autoplay playsinline muted aria-label="教室のローカルカメラ映像"></video><div class="cameraStamp"><span class="cameraDot"></span><span>LIVE・LOCAL ONLY</span><span id="cameraClock">--:--:--</span></div></div>
- <div class="cameraFooter"><span id="cameraStatus">カメラ ON・録画なし</span><span>映像は職員室に送信しません</span></div>
-</div>
 <div id="remoteOverlay" class="remoteOverlay" role="alertdialog" aria-live="assertive" aria-label="職員室からの通知" hidden><div class="remoteCard"><button id="remoteClose" type="button">✕ 閉じる</button><h2 id="remoteHeading">職員室からのお知らせ</h2><p id="remoteMessage"></p></div></div>
 <div class="hud">
 <aside class="rail left">
@@ -129,6 +136,11 @@ body.fullscreen .toast.show{flex:0 0 auto;padding:4px 9px;margin:5px 0}
  <section class="frame tile"><h2>判定基準 / THRESHOLD</h2><div class="metric digital" id="liveThreshold" style="font-size:clamp(13px,1.8vw,22px)">注意 35 / 警告 70</div><div class="small">相対音量 0〜100</div></section>
  <section class="frame tile"><h2>静粛率 / QUIET RATE</h2><div class="metric digital" id="score">—</div><div class="miniBar"><div id="scorebar"></div></div><div class="small" id="sampletime">計測 0秒</div></section>
  <section class="frame tile"><h2>音量推移 / LEVEL HISTORY</h2><canvas id="noiseChart" width="360" height="110" aria-label="最近の相対音量の棒グラフ"></canvas><div class="small">直近約30秒 / 音声は保存しません</div></section>
+<div id="cameraPanel" class="cameraPanel" role="region" aria-label="教室内カメラ映像（この端末のみ）" hidden>
+ <div class="cameraTop"><span>◉ LOCAL CAMERA / 教室映像</span><div class="cameraActions"><button id="cameraSize" type="button" aria-label="カメラ映像を拡大">⛶</button><button id="cameraClose" type="button" aria-label="カメラを停止">✕</button></div></div>
+ <div class="cameraViewport"><video id="cameraVideo" autoplay playsinline muted aria-label="教室のローカルカメラ映像"></video><div class="cameraStamp"><span class="cameraDot"></span><span>LIVE・CAM 01</span><span id="cameraClock">--:--:--</span></div></div>
+ <div class="cameraFooter"><span id="cameraStatus">カメラ ON・録画なし</span><span>CAM 01 / LIVE</span></div>
+</div>
 </aside>
 <main class="central">
  <section class="hero frame"><div class="hazard" id="alertBanner">MONITOR</div><div class="heroTitle" id="headline" aria-live="polite">監視を開始してください</div><div class="heroDesc" id="description">マイクを許可して監視を開始</div><div class="sound"><div class="soundTop"><span>現在の音量 / SOUND LEVEL</span><span>RELATIVE LEVEL</span></div><div class="bigReadout digital"><span id="bigValue" class="num">00</span><span class="unit">/100</span></div><div class="meter"><div id="progressFill" style="width:0;height:100%;background:#fff4;position:absolute;inset:0 auto 0 0;mix-blend-mode:screen"></div><div class="shade" id="shade"></div><div id="thresholdA" class="threshold" style="left:35%"></div><div id="thresholdB" class="threshold" style="left:70%"></div></div><div class="meterInfo"><span>静粛</span><span>注意</span><span>警告</span></div><div style="position:absolute;left:-9999px" id="leveltext">—</div></div><div class="note">音量はマイクから算出する相対値です（dBの実測値ではありません）。声・教師の発言・物音の区別はできません。</div></section>
@@ -404,7 +416,7 @@ function stopCamera(){
  if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}
  cameraUi.video.pause();cameraUi.video.srcObject=null;
  clearInterval(cameraClockTimer);cameraClockTimer=null;
- cameraUi.panel.hidden=true;cameraUi.panel.classList.remove('large');
+ cameraUi.panel.hidden=true;cameraUi.panel.classList.remove('large');document.body.classList.remove('camera-active');
  cameraUi.toggle.textContent='📷 カメラ ON';cameraUi.toggle.setAttribute('aria-pressed','false');cameraUi.toggle.disabled=false;
  cameraUi.size.textContent='⛶';cameraUi.size.setAttribute('aria-label','カメラ映像を拡大');
 }
@@ -420,7 +432,7 @@ async function startCamera(){
   cameraUi.video.srcObject=incoming;
   cameraUi.video.play().catch(()=>{cameraUi.status.textContent='映像を再生できません。画面をクリックしてください。'});
   incoming.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(cameraStream===incoming){stopCamera();showError('カメラ接続が終了しました。')}} ,{once:true}));
-  cameraUi.panel.hidden=false;cameraUi.status.textContent='カメラ ON・録画なし';
+  cameraUi.panel.hidden=false;document.body.classList.add('camera-active');cameraUi.status.textContent='カメラ ON';
   cameraUi.toggle.textContent='■ カメラ OFF';cameraUi.toggle.setAttribute('aria-pressed','true');
   cameraClockTick();clearInterval(cameraClockTimer);cameraClockTimer=setInterval(cameraClockTick,1000);
  }catch(e){if(incoming)incoming.getTracks().forEach(t=>t.stop());showError('カメラを開始できませんでした。端末の許可と他アプリでの使用状況を確認してください。 '+(e?.name||''));}
