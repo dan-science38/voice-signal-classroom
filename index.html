@@ -86,7 +86,13 @@ body.fullscreen .toast.show{flex:0 0 auto;padding:4px 9px;margin:5px 0}
  .timerApply{font-size:12px;padding:6px 10px;white-space:nowrap;border-color:#66d5a8} 
 /* Remote-control extension */
 .remoteDock{margin-top:9px;border:1px solid #368b68;background:#071e18;padding:9px 12px;color:#b7f6dc;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-radius:5px}
-.remoteDock summary{cursor:pointer;font-weight:900;color:#88f4c2}.remoteDock details{width:100%}.remoteControls{display:flex;gap:9px;flex-wrap:wrap;align-items:end;margin-top:7px}.remoteControls label{font-size:12px;display:flex;flex-direction:column;gap:2px}.remoteControls input{background:#031a15;border:1px solid #3b8f70;color:#fff;padding:7px;max-width:330px}.remoteControls input[type=password]{width:180px}.remoteDock button{padding:8px 10px}.remoteCurrent{padding:8px 13px;border:1px solid #38a57b;margin-top:6px;background:#133b2c;overflow-wrap:anywhere}.remoteOverlay[hidden]{display:none!important}.remoteOverlay{position:fixed;z-index:100;inset:0;background:rgba(1,13,10,.92);display:flex;justify-content:center;align-items:center;padding:6vw;backdrop-filter:blur(4px)}.remoteCard{position:relative;width:min(1100px,100%);max-height:85vh;overflow:auto;text-align:center;padding:45px 26px;background:#05271e;border:5px solid #65e8aa;box-shadow:0 0 55px #0c9772;color:#d2ffe8}.remoteOverlay.urgent .remoteCard{background:#330a0e;border-color:#ff5468;box-shadow:0 0 55px #e33549;color:#ffe7e9}.remoteCard h2{font-size:clamp(22px,4vw,56px);margin:0 0 25px}.remoteCard p{font-size:clamp(26px,5.3vw,76px);font-weight:950;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.remoteCard button{position:absolute;top:12px;right:12px;font-size:16px}.fullscreen .remoteDock{padding:3px 8px;margin-top:3px;flex-shrink:0;font-size:11px}.fullscreen .remoteDock:not(:has(details[open])){height:29px}.fullscreen .remoteDock summary{font-size:11px}.fullscreen .remoteCurrent{display:none}
+.remoteDock summary{cursor:pointer;font-weight:900;color:#88f4c2}.remoteDock details{width:100%}.remoteControls{display:flex;gap:9px;flex-wrap:wrap;align-items:end;margin-top:7px}.remoteControls label{font-size:12px;display:flex;flex-direction:column;gap:2px}.remoteControls input{background:#031a15;border:1px solid #3b8f70;color:#fff;padding:7px;max-width:330px}.remoteControls input[type=password]{width:180px}.remoteDock button{padding:8px 10px}.remoteCurrent{padding:8px 13px;border:1px solid #38a57b;margin-top:6px;background:#133b2c;overflow-wrap:anywhere}.remoteOverlay[hidden]{display:none!important}.remoteOverlay{position:fixed;z-index:100;inset:0;background:rgba(1,13,10,.92);display:flex;justify-content:center;align-items:center;padding:6vw;backdrop-filter:blur(4px)}.remoteCard{position:relative;width:min(1100px,100%);max-height:85vh;overflow:auto;text-align:center;padding:45px 26px;background:#05271e;border:5px solid #65e8aa;box-shadow:0 0 55px #0c9772;color:#d2ffe8}.remoteOverlay.urgent .remoteCard{background:#330a0e;border-color:#ff5468;box-shadow:0 0 55px #e33549;color:#ffe7e9}.remoteCard h2{font-size:clamp(22px,4vw,56px);margin:0 0 25px}.remoteCard p{font-size:clamp(26px,5.3vw,76px);font-weight:950;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}.remoteCard button{position:absolute;top:12px;right:12px;font-size:16px}.fullscreen .remoteDock{padding:3px 8px;margin-top:3px;flex-shrink:0;font-size:11px}.fullscreen .remoteDock:not(:has(details[open])){height:29px}.fullscreen .remoteDock summary{font-size:11px}.remoteCurrent[hidden]{display:none!important}
+.remoteCurrent{position:fixed;right:16px;bottom:14px;z-index:90;width:min(320px,calc(100vw - 32px));max-height:32vh;overflow:auto;margin:0;padding:10px 36px 10px 12px;border:2px solid #5cdea9;border-radius:7px;background:#06291eee;box-shadow:0 5px 24px #000b;color:#eafff5;font-size:clamp(12px,1vw,15px);line-height:1.45;white-space:pre-wrap}
+.remoteCurrent.notice{border-color:#ffb65c;background:#301b0dee;color:#fff2dc}
+.remoteCurrent .remoteSmallLabel{display:block;color:#8bffd0;font-size:11px;font-weight:900;margin-bottom:3px}
+.remoteCurrent.notice .remoteSmallLabel{color:#ffd19a}
+.remoteCurrent .remoteSmallClose{position:absolute;right:5px;top:5px;background:transparent;color:inherit;border:1px solid #7b9f92;padding:2px 6px;font-size:12px}
+.fullscreen .remoteCurrent{display:block;bottom:12px;right:12px;width:min(300px,28vw);max-height:25vh;font-size:clamp(11px,.95vw,14px)}
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
@@ -312,14 +318,34 @@ for(const id of ['low','high','smooth','gain','volume'])$(id).addEventListener('
 const remoteUi={endpoint:document.getElementById('remoteEndpoint'),room:document.getElementById('remoteRoom'),key:document.getElementById('remoteKey'),status:document.getElementById('remoteStatus'),overlay:document.getElementById('remoteOverlay'),heading:document.getElementById('remoteHeading'),message:document.getElementById('remoteMessage'),current:document.getElementById('remoteInstruction')};
 let remoteOnline=false,remoteEndpoint='',remoteRoom='',remoteKey='',remoteTimer=null,remoteBusy=false,lastRemoteInstruction='',lastInstructionUntil=0;
 const executedRemoteIds=new Set();
-try{const v=JSON.parse(sessionStorage.getItem('vsc-classroom-remote')||'{}');remoteUi.endpoint.value=v.endpoint||'';remoteUi.room.value=v.room||'class-1';remoteUi.key.value=v.key||''}catch{}
+try{const v=JSON.parse(sessionStorage.getItem('vsc-classroom-remote')||'{}');remoteUi.endpoint.value=v.endpoint||remoteUi.endpoint.defaultValue;remoteUi.room.value=v.room||remoteUi.room.defaultValue;remoteUi.key.value=v.key||''}catch{}
 function remoteURL(path){return remoteEndpoint+'/api/'+path+'?room='+encodeURIComponent(remoteRoom)}
 async function remoteRequest(path,method='GET',body){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5500);try{const res=await fetch(remoteURL(path),{method,headers:{Authorization:'Bearer '+remoteKey,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:controller.signal,cache:'no-store'});const json=await res.json();if(!res.ok||!json.ok)throw Error(json.error||'HTTP '+res.status);return json}finally{clearTimeout(timer)}}
 let overlayTimeout=null;
-function remoteShow(text,kind){remoteUi.heading.textContent=kind==='notice'?'職員室からの通知':'学習指示';remoteUi.message.textContent=text;remoteUi.overlay.classList.toggle('urgent',kind==='notice');remoteUi.overlay.hidden=false;clearTimeout(overlayTimeout);if(kind==='instruction'){lastRemoteInstruction=text;lastInstructionUntil=Date.now()+20*60*1000;remoteUi.current.textContent='学習指示：'+text;remoteUi.current.hidden=false}else{overlayTimeout=setTimeout(()=>remoteUi.overlay.hidden=true,12000)}
+const smallLabel=document.createElement('span');
+smallLabel.className='remoteSmallLabel';
+const smallText=document.createElement('span');
+const smallClose=document.createElement('button');
+smallClose.type='button';smallClose.className='remoteSmallClose';smallClose.textContent='×';smallClose.title='小さい通知を閉じる';
+remoteUi.current.replaceChildren(smallLabel,smallText,smallClose);
+smallClose.onclick=()=>{remoteUi.current.hidden=true};
+function remoteShow(text,kind){
+ const isNotice=kind==='notice';
+ remoteUi.heading.textContent=isNotice?'職員室からの注意・お知らせ':'職員室からの学習指示';
+ remoteUi.message.textContent=text;
+ remoteUi.overlay.classList.toggle('urgent',isNotice);
+ remoteUi.overlay.hidden=false;
+ smallLabel.textContent=isNotice?'⚠ 注意・お知らせ':'✎ 学習指示';
+ smallText.textContent=text;
+ remoteUi.current.classList.toggle('notice',isNotice);
+ remoteUi.current.hidden=true;
+ lastRemoteInstruction=text;
+ lastInstructionUntil=Date.now()+20*60*1000;
+ clearTimeout(overlayTimeout);
+ overlayTimeout=setTimeout(()=>{remoteUi.overlay.hidden=true;remoteUi.current.hidden=false},15000);
  try{playSound('timer')}catch{}
 }
-document.getElementById('remoteClose').onclick=()=>remoteUi.overlay.hidden=true;
+document.getElementById('remoteClose').onclick=()=>{clearTimeout(overlayTimeout);remoteUi.overlay.hidden=true;remoteUi.current.hidden=false};
 async function applyRemote(cmd){if(!cmd||!cmd.id||executedRemoteIds.has(cmd.id))return;
  // Server filters expired commands; do not compare against the classroom PC clock.
 
