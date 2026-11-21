@@ -151,6 +151,68 @@ body.fullscreen .rail.left:not(:has(.cameraPanel:not([hidden]):not(.large))) > s
 .fullscreen .remoteCurrent{display:block;right:clamp(14px,2vw,36px);bottom:clamp(14px,2vw,32px);width:min(540px,38vw);max-height:35vh;font-size:clamp(18px,1.5vw,25px)}
 .fullscreen .remoteCurrent .remoteSmallLabel{font-size:clamp(14px,1.15vw,19px)}
 @media(max-width:700px){.fullscreen .remoteCurrent{width:min(420px,calc(100vw - 24px));right:12px;bottom:12px;font-size:17px}.rail.right #clock{font-size:clamp(40px,8vw,62px)}}
+
+/* v2.7: Balance the full-screen HUD — compact top headings, clear central readout, prominent timer. */
+@media(min-width:1050px){
+ body.fullscreen .hud{grid-template-columns:minmax(220px,.87fr) minmax(0,3.45fr) minmax(275px,1.05fr)}
+}
+body.fullscreen .hero{
+ justify-content:flex-start;
+ align-items:stretch;
+ gap:clamp(5px,.95vh,11px);
+ padding:clamp(12px,1.8vh,19px) clamp(10px,1.1vw,18px);
+}
+body.fullscreen .hazard{font-size:clamp(24px,3.7vh,40px);line-height:1.05;letter-spacing:.06em;flex:0 0 auto}
+body.fullscreen .hazard:before,body.fullscreen .hazard:after{height:clamp(7px,1.2vh,12px)}
+body.fullscreen .heroTitle{font-size:clamp(28px,4.2vh,45px);line-height:1.12;flex:0 0 auto}
+body.fullscreen[data-signal="idle"] .heroTitle{font-size:clamp(24px,3.6vh,37px)}
+body.fullscreen .heroDesc{font-size:clamp(12px,1.65vh,16px);padding:5px 4px;flex:0 0 auto}
+body.fullscreen .sound{
+ flex:1 1 0;
+ min-height:0;
+ display:grid;
+ grid-template-rows:auto minmax(0,1fr) auto auto;
+ align-content:stretch;
+ gap:clamp(7px,1.5vh,15px);
+ padding:clamp(12px,1.6vh,18px);
+}
+body.fullscreen .bigReadout{align-self:center;min-height:0}
+body.fullscreen .bigReadout .num{font-size:clamp(84px,15vh,150px)}
+body.fullscreen .hero .note{flex:0 0 auto}
+body.fullscreen .rail.right{gap:10px}
+body.fullscreen .rail.right > section:first-child{
+ flex:1.25 1 0;
+ min-height:0;
+ display:flex;
+ flex-direction:column;
+ align-items:stretch;
+ justify-content:flex-start;
+ border-color:#61ebad;
+ box-shadow:inset 0 0 24px #155f46,0 0 16px #218d6266;
+}
+body.fullscreen .rail.right > section:nth-child(2){flex:.95 1 0;min-height:0}
+body.fullscreen .rail.right > section:nth-child(3){flex:1.05 1 0;min-height:0}
+body.fullscreen .rail.right #clock{
+ font-size:clamp(52px,5.35vw,88px);
+ line-height:1.1;
+ letter-spacing:-.08em;
+ padding:clamp(10px,2vh,22px) 0;
+ margin:clamp(8px,1.3vh,15px) 0;
+ text-shadow:0 0 20px #38dc9cbb,0 0 44px #1f936855;
+}
+body.fullscreen .rail.right #timerNotice{font-size:clamp(12px,1.45vh,16px)}
+body.fullscreen .rail.right .timerConfig{margin-top:auto}
+@media(max-height:730px){
+ body.fullscreen .hero{padding:8px 10px;gap:4px}
+ body.fullscreen .hazard{font-size:clamp(21px,3.4vh,34px)}
+ body.fullscreen[data-signal="idle"] .heroTitle{font-size:clamp(21px,3.5vh,31px)}
+ body.fullscreen .sound{padding:7px 9px;gap:4px}
+ body.fullscreen .bigReadout .num{font-size:clamp(64px,13vh,110px)}
+ body.fullscreen .rail.right #clock{font-size:clamp(40px,4.7vw,72px);padding:5px 0;margin:4px 0}
+}
+@media(max-width:1049px){
+ body.fullscreen .rail.right #clock{font-size:clamp(34px,4.7vw,63px)}
+}
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="cameraToggle" type="button" aria-pressed="false">📷 カメラ ON</button><button id="teacherQRButton" type="button">▦ 教師端末QR</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
