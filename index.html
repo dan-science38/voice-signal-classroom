@@ -138,6 +138,19 @@ body.fullscreen .rail.left:not(:has(.cameraPanel:not([hidden]):not(.large))) > s
 .teacherQrImage canvas,.teacherQrImage img{width:210px;height:210px;max-width:100%;image-rendering:pixelated}
 .teacherQrActions{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:10px}
 .teacherQrLink{display:block;overflow-wrap:anywhere;font-size:11px;color:#8aeec1;max-height:60px;overflow:auto}
+
+/* Stronger lesson timer, with responsive size that fits the right HUD column. */
+.rail.right > section:first-child{border-color:#45cb96;box-shadow:inset 0 0 20px #10543e,0 0 12px #155a4280}
+.rail.right #clock{font-size:clamp(42px,3.8vw,66px);font-weight:950;letter-spacing:-.065em;line-height:1.15;padding:7px 1px;margin:6px 0 13px;text-shadow:0 0 16px #38c69399}
+.fullscreen .rail.right #clock{font-size:clamp(39px,3.5vw,65px);margin:6px 0 10px}
+.rail.right #timerNotice{font-size:13px;font-weight:850;color:#a7f5c9}
+.rail.right .timerPresets button{min-width:41px}
+.remoteCurrent{right:clamp(12px,2vw,32px);bottom:clamp(12px,2vw,30px);width:min(520px,calc(100vw - 28px));max-height:36vh;padding:14px 46px 14px 18px;border-width:3px;font-size:clamp(17px,1.7vw,23px);font-weight:800;line-height:1.55;box-shadow:0 8px 36px #000d,0 0 14px #30b98155}
+.remoteCurrent .remoteSmallLabel{font-size:clamp(14px,1.2vw,18px);margin-bottom:6px;letter-spacing:.03em}
+.remoteCurrent .remoteSmallClose{right:8px;top:8px;padding:5px 9px;font-size:15px}
+.fullscreen .remoteCurrent{display:block;right:clamp(14px,2vw,36px);bottom:clamp(14px,2vw,32px);width:min(540px,38vw);max-height:35vh;font-size:clamp(18px,1.5vw,25px)}
+.fullscreen .remoteCurrent .remoteSmallLabel{font-size:clamp(14px,1.15vw,19px)}
+@media(max-width:700px){.fullscreen .remoteCurrent{width:min(420px,calc(100vw - 24px));right:12px;bottom:12px;font-size:17px}.rail.right #clock{font-size:clamp(40px,8vw,62px)}}
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="cameraToggle" type="button" aria-pressed="false">📷 カメラ ON</button><button id="teacherQRButton" type="button">▦ 教師端末QR</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
@@ -575,7 +588,7 @@ remoteUi.current.replaceChildren(smallLabel,smallText,smallClose);
 smallClose.onclick=()=>{remoteUi.current.hidden=true};
 function remoteShow(text,kind){
  const isNotice=kind==='notice';
- remoteUi.heading.textContent=isNotice?'職員室からの注意・お知らせ':'職員室からの学習指示';
+ remoteUi.heading.textContent=isNotice?'注意・お知らせ':'学習指示';
  remoteUi.message.textContent=text;
  remoteUi.overlay.classList.toggle('urgent',isNotice);
  remoteUi.overlay.hidden=false;
