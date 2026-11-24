@@ -213,11 +213,31 @@ body.fullscreen .rail.right .timerConfig{margin-top:auto}
 @media(max-width:1049px){
  body.fullscreen .rail.right #clock{font-size:clamp(34px,4.7vw,63px)}
 }
+
+.monitorModePanel{background:#08231d;border:1px solid #319877;border-radius:6px;margin-top:7px;padding:8px 12px;font-size:12px;color:#b7f7d8}
+.monitorModePanel .modeTitle{display:flex;justify-content:space-between;gap:8px;color:#78f1b9;font-weight:900}
+.monitorModePanel .modeTitle span:last-child{color:#d8ffe8}
+.monitorModeRow{display:flex;gap:13px;align-items:center;flex-wrap:wrap;margin-top:5px}
+.monitorModeRow label{cursor:pointer;white-space:nowrap;font-size:13px;font-weight:800}
+.monitorModeRow label input{accent-color:#63e6a8}
+.monitorModeRow select{background:#03180f;border:1px solid #57b98d;padding:4px;color:#c9ffe9;font-size:13px}
+#groupsMonitorLink{color:#8ff5c5;margin-left:auto}
+.modeHelp{color:#8ac6aa;margin-top:4px}
+body.fullscreen .monitorModePanel{padding:3px 9px;margin-top:3px;flex-shrink:0}
+body.fullscreen .monitorModePanel .modeHelp{display:none}
+body.fullscreen .monitorModeRow{margin-top:0}
+@media(max-width:700px){.monitorModeRow{gap:7px}.monitorModePanel .modeTitle{font-size:11px}}
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="cameraToggle" type="button" aria-pressed="false">📷 カメラ ON</button><button id="teacherQRButton" type="button">▦ 教師端末QR</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
 <div id="recoveryBar" class="recoveryBar" hidden role="region" aria-label="前回の計測を復元"><div><strong>前回の授業データが残っています</strong><span id="recoveryDetail"></span><small>復元後、マイクは手動で再開始してください。タイマーは一時停止で復元します。</small></div><div class="recoveryActions"><button type="button" class="primary" id="recoverLesson">↶ データを復元</button><button type="button" id="discardRecovery">破棄して新規開始</button></div></div>
-<div class="remoteDock" id="remoteDock"><details><summary>◉ REMOTE / 遠隔接続　<span id="remoteStatus">● 遠隔接続なし</span></summary><div class="remoteControls"><label>Worker API URL<input id="remoteEndpoint" value="https://voice-signal-remote.schoolhub-lab.workers.dev" placeholder="https://....workers.dev" autocomplete="url"></label><label>教室ID<input id="remoteRoom" value="class-1" autocomplete="off"></label><label>教室キー<input id="remoteKey" type="password" placeholder="CLASSROOM_KEY" autocomplete="off"></label><button id="remoteConnect">接続</button><button id="remoteDisconnect">切断</button><a href="remote.html" target="_blank" rel="noopener" style="color:#97efbf">職員室モード ↗</a></div><small>教室キーはページ内に埋め込みません。入力後はこのタブのセッションに保存します。</small></details></div><div class="remoteCurrent" id="remoteInstruction" hidden></div>
+<section id="monitorModePanel" class="monitorModePanel" aria-label="監視モード設定">
+ <div class="modeTitle"><span>◉ 監視モード / MONITOR MODE</span><span id="groupIdentity">教室一斉監視</span></div>
+ <div class="monitorModeRow"><label><input type="radio" name="monitorScope" value="classroom" checked> 教室一斉監視</label><label><input type="radio" name="monitorScope" value="group"> グループ監視</label>
+ <label id="groupNumberWrap" hidden>グループ番号 <select id="groupNumber"><option value="1">1班</option><option value="2">2班</option><option value="3">3班</option><option value="4">4班</option><option value="5">5班</option><option value="6">6班</option><option value="7">7班</option><option value="8">8班</option><option value="9">9班</option><option value="10">10班</option><option value="11">11班</option><option value="12">12班</option></select></label>
+ <a href="groups.html" target="_blank" rel="noopener" id="groupsMonitorLink">教師用・グループ一覧 ↗</a></div>
+ <div class="modeHelp" id="monitorModeHelp">教室全体の音を1台のマイクで監視します。</div>
+</section><div class="remoteDock" id="remoteDock"><details><summary>◉ REMOTE / 遠隔接続　<span id="remoteStatus">● 遠隔接続なし</span></summary><div class="remoteControls"><label>Worker API URL<input id="remoteEndpoint" value="https://voice-signal-remote.schoolhub-lab.workers.dev" placeholder="https://....workers.dev" autocomplete="url"></label><label>教室ID<input id="remoteRoom" value="class-1" autocomplete="off"></label><label>教室キー<input id="remoteKey" type="password" placeholder="CLASSROOM_KEY" autocomplete="off"></label><button id="remoteConnect">接続</button><button id="remoteDisconnect">切断</button><a href="remote.html" target="_blank" rel="noopener" style="color:#97efbf">職員室モード ↗</a></div><small>教室キーはページ内に埋め込みません。入力後はこのタブのセッションに保存します。</small></details></div><div class="remoteCurrent" id="remoteInstruction" hidden></div>
 
 <div id="teacherQrModal" class="teacherQrModal" hidden role="dialog" aria-modal="true" aria-labelledby="teacherQrTitle">
  <div class="teacherQrCard">
@@ -638,6 +658,40 @@ const remoteUi={endpoint:document.getElementById('remoteEndpoint'),room:document
 let remoteOnline=false,remoteEndpoint='',remoteRoom='',remoteKey='',remoteTimer=null,remoteBusy=false,lastRemoteInstruction='',lastInstructionUntil=0;
 const executedRemoteIds=new Set();
 try{const v=JSON.parse(sessionStorage.getItem('vsc-classroom-remote')||'{}');remoteUi.endpoint.value=v.endpoint||remoteUi.endpoint.defaultValue;remoteUi.room.value=v.room||remoteUi.room.defaultValue;remoteUi.key.value=v.key||''}catch{}
+
+/* Two monitoring scopes. Each group uses a unique Worker room and a physical microphone. */
+let monitorScope='classroom',monitorGroup=1,baseClassRoom='class-1';
+try{
+ const saved=JSON.parse(localStorage.getItem('vsc-monitor-scope')||'{}');
+ monitorScope=saved.scope==='group'?'group':'classroom';
+ monitorGroup=Math.max(1,Math.min(12,Number(saved.group)||1));
+ baseClassRoom=/^[A-Za-z0-9_-]{1,42}$/.test(saved.base||'')?saved.base:'class-1';
+}catch{}
+const groupSelect=document.getElementById('groupNumber');
+const groupWrap=document.getElementById('groupNumberWrap');
+const groupHelp=document.getElementById('monitorModeHelp');
+const groupIdentity=document.getElementById('groupIdentity');
+function groupRoomId(){return monitorScope==='group'?baseClassRoom+'-g'+monitorGroup:baseClassRoom}
+function updateMonitorScopeUI(){
+ document.querySelectorAll('[name=monitorScope]').forEach(x=>x.checked=x.value===monitorScope);
+ groupSelect.value=String(monitorGroup);
+ groupWrap.hidden=monitorScope!=='group';
+ groupIdentity.textContent=monitorScope==='group'?monitorGroup+'班 / 個別監視':'教室一斉監視';
+ groupHelp.textContent=monitorScope==='group'?'マイクを班の中心に設置。隣班の声は完全には除外できません。各班でマイク補正し、隣班だけの声も確認してください。':'教室全体の音を1台のマイクで監視します。';
+ remoteUi.room.value=groupRoomId();
+ const msg='接続先：'+groupRoomId();
+ if(!remoteOnline)remoteUi.status.textContent='● '+msg+'（未接続）';
+ try{localStorage.setItem('vsc-monitor-scope',JSON.stringify({scope:monitorScope,group:monitorGroup,base:baseClassRoom}))}catch{}
+}
+function changeMonitorScope(scope,group){
+ if(remoteOnline)remoteDisconnect();
+ if(active)stop();
+ monitorScope=scope;monitorGroup=group;
+ updateMonitorScopeUI();
+}
+document.querySelectorAll('[name=monitorScope]').forEach(x=>x.addEventListener('change',()=>changeMonitorScope(x.value,monitorGroup)));
+groupSelect.addEventListener('change',()=>changeMonitorScope('group',Number(groupSelect.value)||1));
+updateMonitorScopeUI();
 function remoteURL(path){return remoteEndpoint+'/api/'+path+'?room='+encodeURIComponent(remoteRoom)}
 async function remoteRequest(path,method='GET',body){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5500);try{const res=await fetch(remoteURL(path),{method,headers:{Authorization:'Bearer '+remoteKey,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:controller.signal,cache:'no-store'});const json=await res.json();if(!res.ok||!json.ok)throw Error(json.error||'HTTP '+res.status);return json}finally{clearTimeout(timer)}}
 let overlayTimeout=null;
@@ -720,7 +774,7 @@ document.getElementById('teacherQrCopy').onclick=async()=>{
 document.getElementById('teacherQrClose').onclick=()=>qrUi.modal.hidden=true;
 qrUi.modal.addEventListener('click',e=>{if(e.target===qrUi.modal)qrUi.modal.hidden=true});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!qrUi.modal.hidden)qrUi.modal.hidden=true});
-document.getElementById('remoteConnect').onclick=async()=>{remoteDisconnect();remoteEndpoint=remoteUi.endpoint.value.trim().replace(/\/$/,'');remoteRoom=remoteUi.room.value.trim();remoteKey=remoteUi.key.value.trim();if(!/^https:\/\/[^/]+$/.test(remoteEndpoint)||!/^[a-zA-Z0-9_-]{1,50}$/.test(remoteRoom)||!remoteKey){remoteUi.status.textContent='Worker URL・教室ID・教室キーを入力してください';return}try{await remoteRequest('sync');remoteOnline=true;sessionStorage.setItem('vsc-classroom-remote',JSON.stringify({endpoint:remoteEndpoint,room:remoteRoom,key:remoteKey}));await remoteTick();remoteTimer=setInterval(remoteTick,1700)}catch(e){remoteUi.status.textContent='接続失敗：'+e.message}};
+document.getElementById('remoteConnect').onclick=async()=>{remoteDisconnect();remoteEndpoint=remoteUi.endpoint.value.trim().replace(/\/$/,'');remoteRoom=remoteUi.room.value.trim();if(remoteRoom!==groupRoomId()){remoteUi.status.textContent='監視モードの教室IDと接続先が一致しません。モードと番号を確認してください。';return}remoteKey=remoteUi.key.value.trim();if(!/^https:\/\/[^/]+$/.test(remoteEndpoint)||!/^[a-zA-Z0-9_-]{1,50}$/.test(remoteRoom)||!remoteKey){remoteUi.status.textContent='Worker URL・教室ID・教室キーを入力してください';return}try{await remoteRequest('sync');remoteOnline=true;sessionStorage.setItem('vsc-classroom-remote',JSON.stringify({endpoint:remoteEndpoint,room:remoteRoom,key:remoteKey}));await remoteTick();remoteTimer=setInterval(remoteTick,1700)}catch(e){remoteUi.status.textContent='接続失敗：'+e.message}};
 document.getElementById('remoteDisconnect').onclick=remoteDisconnect;
 window.addEventListener('pagehide',remoteDisconnect);
 
