@@ -31,7 +31,7 @@ a{color:#9eecc1}
   button.setAttribute('aria-label',i+'班の監視画面を開く');
   button.onclick=()=>{
    const dest=new URL('classroom.html',location.href);
-   dest.searchParams.set('mode','group');dest.searchParams.set('group',String(i));dest.searchParams.set('base',base);
+   dest.searchParams.set('mode','group');dest.searchParams.set('group',String(i));dest.searchParams.set('base',base);dest.searchParams.set('count',String(n));
    location.assign(dest.href);
   };
   buttons.append(button);
