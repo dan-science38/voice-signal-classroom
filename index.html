@@ -869,7 +869,7 @@ async function applyRemote(cmd){if(!cmd||!cmd.id||executedRemoteIds.has(cmd.id))
  remoteUi.status.textContent='● 命令を受信：'+cmd.type;
  try{switch(cmd.type){
  case 'instruction':case 'notice':remoteShow(String(cmd.text||''),cmd.type);break;
- case 'set_pin':{if(monitorScope!=='group')throw Error('グループ監視以外では設定できません');const pin=String(cmd.text||'');if(!/^[0-9]{4,8}$/.test(pin))throw Error('PINは4〜8桁');teacherConfiguredPin=pin;if(groupLockMode==='locked'){groupLockPin=pin;groupLockTries=0;groupLockCooldown=0;lockUi.feedback.textContent='教師用画面から解除PINが更新されました';}break;}
+ case 'set_pin':{if(monitorScope!=='group')throw Error('グループ監視以外では設定できません');const pin=String(cmd.text||'');if(!/^[0-9]{4,8}$/.test(pin))throw Error('PINは4〜8桁');teacherConfiguredPin=pin;if(groupLockMode==='locked'){groupLockPin=pin;groupLockTries=0;groupLockCooldown=0;lockUi.feedback.textContent='教師用画面から解除PINが更新されました';}else if(groupLockMode==='setup'){lockEngage(pin);}break;}
  case 'set_start':if(!setTimerDuration(cmd.seconds))throw Error('Invalid duration');$('timerToggle').click();break;
  case 'pause':if(timerRunning)$('timerToggle').click();break;
  case 'resume':if(!timerRunning)$('timerToggle').click();break;
@@ -888,6 +888,8 @@ async function remoteTick(){if(!remoteOnline||remoteBusy)return;remoteBusy=true;
    groupLockPin=teacherConfiguredPin;
    groupLockTries=0;groupLockCooldown=0;
    lockUi.feedback.textContent='教師用画面の解除PIN設定が反映されました';
+  }else if(groupLockMode==='setup'){
+   lockEngage(teacherConfiguredPin);
   }
  }
  if(!(result.commands||[]).length){remoteUi.status.textContent='● 職員室と通信中（命令待機）';}
