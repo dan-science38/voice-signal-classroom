@@ -66,9 +66,9 @@ th{color:#9ef5cb;position:sticky;top:0;background:#0b3226}
 <label>新しい教室キー<input id="groupRoomKey" type="password" autocomplete="new-password" placeholder="4文字以上"></label>
 <button class="secondary" id="groupUpdateKey">教室キーを変更</button>
 <label>解除PIN<input id="groupNewPin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="4〜8桁"></label>
-<button class="secondary" id="groupUpdatePin">解除PINを送信</button>
+<button class="secondary" id="groupUpdatePin">解除PINを変更・保存</button>
 </div>
-<p class="note">「0000」のような短い教室キーは推測されやすいため非推奨。PINはオンラインの班にのみ送信でき、教室端末で実行確認後に反映されます。</p>
+<p class="note">「0000」のような短い教室キーは推測されやすいため非推奨。解除PINはWorkerに保存され、オフラインの班にも次回接続時に反映されます。</p>
 <div id="securityResult" role="status" class="note"></div></section>
 <section class="panel"><div class="controls" style="justify-content:space-between"><h2>マイクON/OFF 変更履歴</h2><div><button class="secondary" id="export">履歴CSV</button> <button class="secondary" id="clearHistory">この端末の履歴を消去</button></div></div>
 <p class="note">履歴は、この教師端末が監視中に検知したON/OFF変化を保存します。監視していない時間の操作は記録できません。音声録音ではありません。</p>
@@ -144,7 +144,7 @@ $('groupUpdatePin').onclick=async()=>{
  const pin=$('groupNewPin').value,targets=securityTargets();
  if(!/^[0-9]{4,8}$/.test(pin)){securityFeedback(['解除PINは4〜8桁の数字です。']);return}
  const b=$('groupUpdatePin');b.disabled=true;const results=[];
- for(const i of targets){try{await securityRequest(i,'command',{type:'set_pin',text:pin});results.push(i+'班：送信済み（反映確認待ち）')}catch(e){results.push(i+'班：失敗（'+e.message+'）')}}
+ for(const i of targets){try{await securityRequest(i,'group-pin',{pin});results.push(i+'班：保存済み（オンライン時に自動反映）')}catch(e){results.push(i+'班：失敗（'+e.message+'）')}}
  $('groupNewPin').value='';securityFeedback(results);b.disabled=false;
 };
 buildCards();
