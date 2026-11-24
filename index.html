@@ -234,9 +234,9 @@ body.fullscreen .monitorModeRow{margin-top:0}
 <section id="monitorModePanel" class="monitorModePanel" aria-label="監視モード設定">
  <div class="modeTitle"><span>◉ 監視モード / MONITOR MODE</span><span id="groupIdentity">教室一斉監視</span></div>
  <div class="monitorModeRow"><label><input type="radio" name="monitorScope" value="classroom" checked> 教室一斉監視</label><label><input type="radio" name="monitorScope" value="group"> グループ監視</label>
- <label id="groupNumberWrap" hidden>グループ番号 <select id="groupNumber"><option value="1">1班</option><option value="2">2班</option><option value="3">3班</option><option value="4">4班</option><option value="5">5班</option><option value="6">6班</option><option value="7">7班</option><option value="8">8班</option><option value="9">9班</option><option value="10">10班</option><option value="11">11班</option><option value="12">12班</option></select></label>
+ <label>基本教室ID <input id="baseClassRoomInput" value="class-1" maxlength="42" style="width:112px;background:#031a14;color:#c9ffe9;border:1px solid #57b98d;padding:4px"></label><label id="groupNumberWrap" hidden>グループ番号 <select id="groupNumber"><option value="1">1班</option><option value="2">2班</option><option value="3">3班</option><option value="4">4班</option><option value="5">5班</option><option value="6">6班</option><option value="7">7班</option><option value="8">8班</option><option value="9">9班</option><option value="10">10班</option><option value="11">11班</option><option value="12">12班</option></select></label>
  <a href="groups.html" target="_blank" rel="noopener" id="groupsMonitorLink">教師用・グループ一覧 ↗</a></div>
- <div class="modeHelp" id="monitorModeHelp">教室全体の音を1台のマイクで監視します。</div>
+ <div class="modeHelp" id="monitorModeHelp">教室全体の音を1台のマイクで監視します。</div><div class="buttonrow" id="groupOnlyTools" hidden style="margin-top:6px"><button type="button" id="neighborCheck" disabled>④ 隣の班だけ会話（4秒）</button><button type="button" id="micLogExport">マイクON/OFF履歴CSV</button><span id="neighborCheckStatus" style="font-size:11px">①②の補正後に隣班の声を確認できます</span></div>
 </section><div class="remoteDock" id="remoteDock"><details><summary>◉ REMOTE / 遠隔接続　<span id="remoteStatus">● 遠隔接続なし</span></summary><div class="remoteControls"><label>Worker API URL<input id="remoteEndpoint" value="https://voice-signal-remote.schoolhub-lab.workers.dev" placeholder="https://....workers.dev" autocomplete="url"></label><label>教室ID<input id="remoteRoom" value="class-1" autocomplete="off"></label><label>教室キー<input id="remoteKey" type="password" placeholder="CLASSROOM_KEY" autocomplete="off"></label><button id="remoteConnect">接続</button><button id="remoteDisconnect">切断</button><a href="remote.html" target="_blank" rel="noopener" style="color:#97efbf">職員室モード ↗</a></div><small>教室キーはページ内に埋め込みません。入力後はこのタブのセッションに保存します。</small></details></div><div class="remoteCurrent" id="remoteInstruction" hidden></div>
 
 <div id="teacherQrModal" class="teacherQrModal" hidden role="dialog" aria-modal="true" aria-labelledby="teacherQrTitle">
@@ -337,7 +337,7 @@ setInterval(()=>writeCheckpoint(),3000);
 window.addEventListener('pagehide',()=>writeCheckpoint(true));
 
 function save(){try{localStorage.setItem('vsc-v2',JSON.stringify({mode,cfg}))}catch{}}function showError(msg){$('toast').textContent=msg;$('toast').classList.add('show')}function clearError(){$('toast').classList.remove('show')}
-function micProfileKey(){return 'vsc-mic-profile-'+(micDeviceProfile||'default')}
+function micProfileKey(){return 'vsc-mic-profile-'+(micDeviceProfile||'default')+(monitorScope==='group'?'-'+groupRoomId():'')}
 function saveMicProfile(quality='手動調整'){
  if(!micDeviceProfile)return;
  try{
@@ -481,7 +481,7 @@ async function start(){
   stream=incoming;ctx=newCtx;await identifyMicrophone(incoming);const source=ctx.createMediaStreamSource(stream);analyser=ctx.createAnalyser();analyser.fftSize=1024;source.connect(analyser);buf=new Float32Array(analyser.fftSize);
   // If the device is unplugged or permission is revoked, do not display a false green status.
   stream.getAudioTracks().forEach(track=>track.addEventListener('ended',()=>{if(!active)return;stop();showError('マイクの接続が切れました。接続・権限を確認して「監視を開始」を押してください。')},{once:true}));
-  active=true;healthFault=false;demo=false;lastSampleWall=Date.now();$('healthMessage').textContent='● 音声処理：正常';smoothed=0;rawPeak=0;rawPeakAt=0;lastFrame=0;lastScore=0;signalSince=performance.now();resetEpisode();
+  active=true;recordMicToggle(true);healthFault=false;demo=false;lastSampleWall=Date.now();$('healthMessage').textContent='● 音声処理：正常';smoothed=0;rawPeak=0;rawPeakAt=0;lastFrame=0;lastScore=0;signalSince=performance.now();resetEpisode();
   $('dot').classList.add('live');$('micstatus').textContent=monitorPaused?'一時停止中':'静粛監視中';$('demo').textContent='▶ おためし';raf=requestAnimationFrame(sample);
  }catch(e){
   if(incoming&&incoming!==stream)incoming.getTracks().forEach(t=>t.stop());if(newCtx&&newCtx!==ctx)newCtx.close().catch(()=>{});
@@ -491,7 +491,7 @@ async function start(){
  }
 }
 function stop(){
- startToken++;starting=false;active=false;$('toggleMic').disabled=false;
+ const wasActive=active;startToken++;starting=false;active=false;if(wasActive)recordMicToggle(false);$('toggleMic').disabled=false;
  if(raf)cancelAnimationFrame(raf);raf=null;
  if(stream){const old=stream;stream=null;old.getTracks().forEach(t=>t.stop())}
  if(ctx){const old=ctx;ctx=null;old.close().catch(()=>{})}
@@ -667,15 +667,15 @@ try{
  monitorGroup=Math.max(1,Math.min(12,Number(saved.group)||1));
  baseClassRoom=/^[A-Za-z0-9_-]{1,42}$/.test(saved.base||'')?saved.base:'class-1';
 }catch{}
-const groupSelect=document.getElementById('groupNumber');
+const groupSelect=document.getElementById('groupNumber');const baseRoomInput=document.getElementById('baseClassRoomInput');
 const groupWrap=document.getElementById('groupNumberWrap');
 const groupHelp=document.getElementById('monitorModeHelp');
 const groupIdentity=document.getElementById('groupIdentity');
 function groupRoomId(){return monitorScope==='group'?baseClassRoom+'-g'+monitorGroup:baseClassRoom}
 function updateMonitorScopeUI(){
  document.querySelectorAll('[name=monitorScope]').forEach(x=>x.checked=x.value===monitorScope);
- groupSelect.value=String(monitorGroup);
- groupWrap.hidden=monitorScope!=='group';
+ groupSelect.value=String(monitorGroup);baseRoomInput.value=baseClassRoom;
+ groupWrap.hidden=monitorScope!=='group';document.getElementById('groupOnlyTools').hidden=monitorScope!=='group';
  groupIdentity.textContent=monitorScope==='group'?monitorGroup+'班 / 個別監視':'教室一斉監視';
  groupHelp.textContent=monitorScope==='group'?'マイクを班の中心に設置。隣班の声は完全には除外できません。各班でマイク補正し、隣班だけの声も確認してください。':'教室全体の音を1台のマイクで監視します。';
  remoteUi.room.value=groupRoomId();
@@ -691,7 +691,27 @@ function changeMonitorScope(scope,group){
 }
 document.querySelectorAll('[name=monitorScope]').forEach(x=>x.addEventListener('change',()=>changeMonitorScope(x.value,monitorGroup)));
 groupSelect.addEventListener('change',()=>changeMonitorScope('group',Number(groupSelect.value)||1));
+baseRoomInput.addEventListener('change',()=>{const v=baseRoomInput.value.trim();if(!/^[A-Za-z0-9_-]{1,42}$/.test(v)){showError('教室IDは英数字・ハイフン・アンダーバーで42文字以内です');baseRoomInput.value=baseClassRoom;return}baseClassRoom=v;changeMonitorScope(monitorScope,monitorGroup)});
 updateMonitorScopeUI();
+
+/* Group microphone state history is local to each device, not an audio recording. */
+let micOnOffLog=[];
+try{const saved=JSON.parse(localStorage.getItem('vsc-group-mic-log')||'[]');if(Array.isArray(saved))micOnOffLog=saved}catch{}
+function recordMicToggle(on){
+ if(monitorScope!=='group')return;
+ const entry={at:Date.now(),room:groupRoomId(),mic:!!on};
+ const prev=micOnOffLog[micOnOffLog.length-1];
+ if(prev&&prev.room===entry.room&&prev.mic===entry.mic)return;
+ micOnOffLog.push(entry);micOnOffLog=micOnOffLog.slice(-2000);
+ try{localStorage.setItem('vsc-group-mic-log',JSON.stringify(micOnOffLog))}catch{}
+}
+document.getElementById('micLogExport').onclick=()=>{
+ const data=micOnOffLog.filter(e=>e.room===groupRoomId());
+ const rows=[['日時','教室・班','マイク状態'],...data.map(e=>[new Date(e.at).toLocaleString('ja-JP'),e.room,e.mic?'ON':'OFF'])];
+ const csv='\ufeff'+rows.map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');
+ a.href=url;a.download=groupRoomId()+'_マイク状態履歴.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
 function remoteURL(path){return remoteEndpoint+'/api/'+path+'?room='+encodeURIComponent(remoteRoom)}
 async function remoteRequest(path,method='GET',body){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5500);try{const res=await fetch(remoteURL(path),{method,headers:{Authorization:'Bearer '+remoteKey,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:controller.signal,cache:'no-store'});const json=await res.json();if(!res.ok||!json.ok)throw Error(json.error||'HTTP '+res.status);return json}finally{clearTimeout(timer)}}
 let overlayTimeout=null;
