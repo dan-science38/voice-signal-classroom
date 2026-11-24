@@ -78,6 +78,14 @@ th{color:#9ef5cb;position:sticky;top:0;background:#0b3226}
 (()=>{'use strict';const $=id=>document.getElementById(id);
 let endpoint='',base='',token='',count=6,online=false,polling=null,pollBusy=false,previous={},log=[],run=0;
 try{const config=JSON.parse(localStorage.getItem('vsc-groups-dashboard')||'{}');$('endpoint').value=config.endpoint||$('endpoint').defaultValue;$('baseRoom').value=config.base||'class-1';$('count').value=String(config.count||6)}catch{}
+// Carry class ID and group count from the home page without sharing credentials.
+try{
+ const params=new URLSearchParams(location.search);
+ const base=params.get('base'),n=Number(params.get('count'));
+ if(base&&/^[A-Za-z0-9_-]{1,42}$/.test(base))$('baseRoom').value=base;
+ if(Number.isInteger(n)&&n>=2&&n<=12)$('count').value=String(n);
+ if(params.has('base')||params.has('count'))history.replaceState(null,'',location.pathname);
+}catch{}
 function storeLog(){try{localStorage.setItem('vsc-mic-onoff-history-'+base,JSON.stringify(log.slice(-1500)))}catch{}}
 function renderLog(){const body=$('logBody');body.replaceChildren();if(!log.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='記録はまだありません';tr.append(td);body.append(tr);return}
 for(const e of log.slice(-100).reverse()){const tr=document.createElement('tr');for(const text of [new Date(e.at).toLocaleString('ja-JP'),e.group+'班',e.now?'マイクON':'マイクOFF',e.was?'マイクON':'マイクOFF']){const td=document.createElement('td');td.textContent=text;tr.append(td)}body.append(tr)}}
