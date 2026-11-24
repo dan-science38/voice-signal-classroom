@@ -412,6 +412,29 @@ function applyMicCalibration(quiet,near,far){
  calibrationStatus('補正完了：感度 '+cfg.gain+'倍 / 注意 '+cfg.low+' / 警告 '+cfg.high+'。静音 '+micDb(quiet)+' / 近くの会話 '+micDb(near)+(far?' / 遠くの会話 '+micDb(far):'')+'。判定の目安：'+quality+'。静かな授業中と会話時に実際の表示を確認してください。');
  return true;
 }
+function groupIsolationCheck(quiet,near,neighbor){
+ const ratio=near/Math.max(neighbor,.00005);
+ const el=document.getElementById('neighborCheckStatus');
+ const nearDisplay=Math.min(100,near*cfg.gain*100),neighborDisplay=Math.min(100,neighbor*cfg.gain*100);
+ if(ratio<1.5||nearDisplay-neighborDisplay<9){
+  el.textContent='⚠ 区別困難（自班／隣班の音量比 '+ratio.toFixed(1)+'倍）。位置・指向性マイクを見直してください。';
+  calibrationStatus('隣班の声と自班の声の差が小さく、警告基準だけでは分離できません。設定は維持します。');return false;
+ }
+ const nextLow=Math.round(neighborDisplay+Math.max(2,(nearDisplay-neighborDisplay)*.15));
+ const nextHigh=Math.round(neighborDisplay+Math.max(6,(nearDisplay-neighborDisplay)*.55));
+ const cap=Math.floor(nearDisplay-2);
+ if(nextHigh>cap||Math.max(cfg.high,nextHigh)>cap){
+  el.textContent='⚠ 隣班の音を除外すると自班の声も検知できない可能性があります。配置を再検討してください。';
+  calibrationStatus('隣班の音を超える基準を設定すると、自班の会話も見逃す可能性があります。現在の設定を維持しました。');return false;
+ }
+ cfg.low=Math.min(94,Math.max(cfg.low,nextLow));
+ cfg.high=Math.max(cfg.low+6,Math.max(cfg.high,nextHigh));
+ cfg.high=Math.min(100,cfg.high);
+ sync();save();saveMicProfile('隣班テスト済み');
+ el.textContent='✓ 隣班テスト：自班の音量が '+ratio.toFixed(1)+'倍。注意 '+cfg.low+'／警告 '+cfg.high+'。完全な除外ではありません。';
+ calibrationStatus('隣班の声を考慮して判定基準を調整しました。設置位置とマイクの向きが変わると再測定が必要です。');
+ return true;
+}
 function setMode(next){mode=next;cfg.low=modes[mode].low;cfg.high=modes[mode].high;document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));$('modetitle').textContent=modes[mode].title;$('modehelp').textContent=modes[mode].hint;sync();save()}function sync(){for(const id of ['low','high','smooth','gain','volume']){$(id).value=cfg[id]}$('alertdelay').value=String(cfg.alertdelay);$('quietReset').value=String(cfg.quietReset);$('repeatInterval').value=String(cfg.repeatInterval);updateCountRule();$('alert').checked=!!cfg.alert;$('warningSound').value=cfg.warningSound||'alarm';$('timerSound').value=cfg.timerSound||'chime';$('timerVolume').value=cfg.timerVolume??.8;$('timerVolumeValue').textContent=Math.round((cfg.timerVolume??.8)*100)+'%';$('timerSoundEnabled').checked=cfg.timerSoundEnabled!==false;$('soundGuardTail').value=String(cfg.soundGuardTail);$('volumeValue').textContent=Math.round(cfg.volume*100)+'%';$('lowValue').textContent=cfg.low+' / 100';$('highValue').textContent=cfg.high+' / 100';$('smoothValue').textContent=Number(cfg.smooth).toFixed(2)+' 秒';$('gainValue').textContent=Number(cfg.gain).toFixed(1)+' 倍';$('thresholdA').style.left=cfg.low+'%';$('thresholdB').style.left=cfg.high+'%'}
 function updateCountRule(){const immediate=Number(cfg.alertdelay)===0;const label=immediate?'超えたら即カウント':Number(cfg.alertdelay)+'秒超過でカウント';const repeat=Number(cfg.repeatInterval);$('countRuleLabel').textContent=label+(repeat?'／継続'+repeat+'秒ごと＋1':'／継続加算なし');$('countExplanation').textContent=(immediate?'赤い警告基準を超えた瞬間に1回。':'赤い警告基準を'+cfg.alertdelay+'秒以上超え続けたら1回。')+(repeat?' その後も赤い警告状態が続けば、'+repeat+'秒ごとにさらに＋1。短くでも赤が途切れると追加加算の秒数は測り直します。':' 同じ超過が続いても追加カウントしません。')+' 静かな状態が設定秒数続いたら新しい警告として数えます。';}
 function setCountDisplay(){const el=$('alertsCount'),wrap=el.parentElement;el.textContent=String(warningCount);const maxWidth=Math.max(35,wrap.clientWidth-36);let px=Math.min(128,Math.max(48,window.innerWidth*.075));el.style.fontSize=px+'px';while(el.scrollWidth>maxWidth&&px>20){px-=2;el.style.fontSize=px+'px'}el.setAttribute('aria-label',warningCount+'回');}
@@ -427,7 +450,7 @@ function sample(now){if(!active)return;lastSampleWall=Date.now();
    raf=requestAnimationFrame(sample);return;
  }
  if(guardWasActive){guardWasActive=false;smoothed=0;rawPeak=0;rawPeakAt=0;lastFrame=now;lastScore=now;if(guardPreserveEpisode){repeatFrom=now;quietSince=0;}else resetEpisode();guardPreserveEpisode=false;$('countStatus').textContent='監視再開（通知音の影響を除外しました）';}
- analyser.getFloatTimeDomainData(buf);let sum=0;for(let i=0;i<buf.length;i++)sum+=buf[i]*buf[i];const rms=Math.sqrt(sum/buf.length);const raw=Math.min(100,rms*cfg.gain*100);const dt=Math.min(.1,Math.max(.001,((now-lastFrame)||16)/1000));lastFrame=now;const tau=raw>smoothed?Math.max(.008,cfg.smooth*.22):Math.max(.07,cfg.smooth*1.4);smoothed+=(raw-smoothed)*(1-Math.exp(-dt/tau));if(raw>rawPeak||now-rawPeakAt>180){rawPeak=raw;rawPeakAt=now}const detected=Math.max(smoothed,rawPeak*.95);if(calibration&&['quiet','near','far'].includes(calibration.phase)){
+ analyser.getFloatTimeDomainData(buf);let sum=0;for(let i=0;i<buf.length;i++)sum+=buf[i]*buf[i];const rms=Math.sqrt(sum/buf.length);const raw=Math.min(100,rms*cfg.gain*100);const dt=Math.min(.1,Math.max(.001,((now-lastFrame)||16)/1000));lastFrame=now;const tau=raw>smoothed?Math.max(.008,cfg.smooth*.22):Math.max(.07,cfg.smooth*1.4);smoothed+=(raw-smoothed)*(1-Math.exp(-dt/tau));if(raw>rawPeak||now-rawPeakAt>180){rawPeak=raw;rawPeakAt=now}const detected=Math.max(smoothed,rawPeak*.95);if(calibration&&['quiet','near','far','neighbor'].includes(calibration.phase)){
   calibration.values.push(rms);
   const elapsed=now-calibration.start;
   $('calibProgress').style.width=Math.min(100,Math.round(elapsed/40))+'%';
@@ -446,20 +469,26 @@ function sample(now){if(!active)return;lastSampleWall=Date.now();
     calibration.near=measured;calibration.phase='readyFar';
     $('calibrateVoice').disabled=true;
     if(applyMicCalibration(calibration.quiet,measured,null)){
-     $('calibrateFar').disabled=false;
+     $('calibrateFar').disabled=false;document.getElementById('neighborCheck').disabled=monitorScope!=='group';
      $('calibLive').textContent='② 近くの会話：'+micDb(measured)+' ｜ ③は任意。離れた場所で再調整できます';
     }else{
-     calibration=null;$('calibrateFar').disabled=true;
+     calibration=null;$('calibrateFar').disabled=true;document.getElementById('neighborCheck').disabled=true;
      $('calibLive').textContent='入力レベルまたはマイク位置を確認してください';
     }
+   }else if(phase==='neighbor'){
+    calibration.neighbor=measured;calibration.phase='readyFar';
+    groupIsolationCheck(calibration.quiet,calibration.near,measured);
+    document.getElementById('neighborCheck').disabled=true;
+    $('calibLive').textContent='隣の班だけの会話：'+micDb(measured)+' ｜ ③の遠距離テストは任意';
    }else{
     const quiet=calibration.quiet,near=calibration.near;
     const ratio=measured/Math.max(quiet,.00005);
-    if(ratio>=1.3&&measured>=.00008){applyMicCalibration(quiet,near,measured);}
-    else{
-     calibrationStatus('③ 離れた場所の会話は背景音と区別できません（差 '+ratio.toFixed(1)+'倍）。②までの補正を維持しました。端末の置き方やマイクを見直してください。');
+    if(ratio>=1.3&&measured>=.00008){
+     if(applyMicCalibration(quiet,near,measured)&&calibration.neighbor)groupIsolationCheck(quiet,near,calibration.neighbor);
+    }else{
+     calibrationStatus('③ 離れた場所の会話は背景音と区別できません（差 '+ratio.toFixed(1)+'倍）。②までの補正を維持しました。');
     }
-    calibration=null;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;
+    calibration=null;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;document.getElementById('neighborCheck').disabled=true;
     $('calibLive').textContent='③ 遠くの会話：'+micDb(measured);
    }
    calibration?.values.splice(0);$('calibProgress').style.width='100%';
@@ -495,7 +524,7 @@ function stop(){
  if(raf)cancelAnimationFrame(raf);raf=null;
  if(stream){const old=stream;stream=null;old.getTracks().forEach(t=>t.stop())}
  if(ctx){const old=ctx;ctx=null;old.close().catch(()=>{})}
- analyser=null;calibration=null;$('calibrate').disabled=false;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;$('calibProgress').style.width='0%';lastScore=0;lastSampleWall=0;guardPreserveEpisode=false;resetEpisode();$('healthMessage').textContent='音声処理：停止';$('dot').classList.remove('live');$('micstatus').textContent=demo?'おためし中':'マイク停止中';$('toggleMic').textContent='🎤 監視を開始';document.body.dataset.signal='idle';
+ analyser=null;calibration=null;document.getElementById('neighborCheck').disabled=true;$('calibrate').disabled=false;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;$('calibProgress').style.width='0%';lastScore=0;lastSampleWall=0;guardPreserveEpisode=false;resetEpisode();$('healthMessage').textContent='音声処理：停止';$('dot').classList.remove('live');$('micstatus').textContent=demo?'おためし中':'マイク停止中';$('toggleMic').textContent='🎤 監視を開始';document.body.dataset.signal='idle';
  if(!demo){$('alertBanner').textContent='MONITOR';$('bigValue').textContent='00';$('progressFill').style.width='0%';$('headline').textContent='監視を開始してください';$('description').textContent='「監視を開始」を押して静粛監視を開始';$('shade').style.width='100%';$('leveltext').textContent='—';for(const id of ['green','yellow','red'])$(id).classList.remove('on')}
 }
 $('toggleMic').onclick=()=>active?stop():start();
@@ -602,15 +631,23 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){reconcile
 $('timerReset').onclick=()=>setTimerDuration(configuredTimerSeconds);
 $('pauseMonitor').onclick=()=>{monitorPaused=!monitorPaused;resetEpisode();lastScore=0;$('pauseMonitor').textContent=monitorPaused?'▶ 監視を再開':'⏸ 監視を一時停止';$('pauseLabel').textContent=monitorPaused?'現在は集計・警告を停止しています':'監視中（マイク起動時）';$('micstatus').textContent=active?(monitorPaused?'一時停止中':'静粛監視中'):'マイク停止中';writeCheckpoint(true)};$('resetScore').onclick=()=>{scoreTotal=scoreGood=lastScore=0;warningCount=0;maxViolation=0;resetEpisode();setCountDisplay();$('countStatus').textContent='カウント待機中';$('maxViolation').textContent='0.0 秒';$('score').textContent='—';$('scorebar').style.width='0';$('sampletime').textContent='計測 0秒';updateRating();clearCheckpoint()};
 $('saveLesson').onclick=()=>{if(scoreTotal<1000){showError('計測が1秒以上ある授業だけ保存できます。マイクを開始して計測してください。');return}const h={date:new Date().toISOString(),name:$('lessonName').value.trim(),duration:Math.round(scoreTotal/1000),count:warningCount,percent:Math.round(100*scoreGood/scoreTotal)};const nextHistory=[h,...history].slice(0,100);if(saveHistory(nextHistory)){showHistory();clearError();$('resetScore').click();$('lessonName').value='';clearCheckpoint()}};$('exportCsv').onclick=()=>{if(!history.length){showError('書き出す記録がありません。');return}const rows=[['日時','授業メモ','計測秒','警告回数','評価','静粛率%'],...history.map(h=>[new Date(h.date).toLocaleString('ja-JP'),h.name,h.duration,h.count,grade(h.count),h.percent])];const escapeCsv=x=>'"'+String(x??'').replaceAll('"','""')+'"';const csv='\ufeff'+rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='voice-signal-警告記録.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)};$('clearHistory').onclick=()=>{if(!history.length)return;if(!confirm('保存済みの授業記録をすべて削除します。元に戻せません。よろしいですか？'))return;if(saveHistory([]))showHistory()};showHistory();updateRating();
-for(const id of ['low','high','smooth','gain','volume'])$(id).addEventListener('input',()=>{cfg[id]=Number($(id).value);if(id==='low'&&cfg.low>=cfg.high-5)cfg.high=cfg.low+6;if(id==='high'&&cfg.high<=cfg.low+5)cfg.low=cfg.high-6;sync();save()});for(const key of ['alertdelay','quietReset','repeatInterval'])$(key).addEventListener('change',()=>{cfg[key]=Number($(key).value);resetEpisode();$('countStatus').textContent='カウント条件を変更しました';updateCountRule();save()});$('alert').onchange=()=>{cfg.alert=$('alert').checked;save()};$('calibrate').onclick=()=>{if(!active){showError('マイクを開始してから補正してください。');return}clearError();calibration={phase:'quiet',start:performance.now(),values:[],quiet:0,near:0};$('calibrate').disabled=true;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;$('calibProgress').style.width='0%';calibrationStatus('① 静音を4秒測定中。話さずに待ってください。');lastScore=0;resetEpisode()};
+for(const id of ['low','high','smooth','gain','volume'])$(id).addEventListener('input',()=>{cfg[id]=Number($(id).value);if(id==='low'&&cfg.low>=cfg.high-5)cfg.high=cfg.low+6;if(id==='high'&&cfg.high<=cfg.low+5)cfg.low=cfg.high-6;sync();save()});for(const key of ['alertdelay','quietReset','repeatInterval'])$(key).addEventListener('change',()=>{cfg[key]=Number($(key).value);resetEpisode();$('countStatus').textContent='カウント条件を変更しました';updateCountRule();save()});$('alert').onchange=()=>{cfg.alert=$('alert').checked;save()};$('calibrate').onclick=()=>{if(!active){showError('マイクを開始してから補正してください。');return}clearError();calibration={phase:'quiet',start:performance.now(),values:[],quiet:0,near:0};$('calibrate').disabled=true;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;document.getElementById('neighborCheck').disabled=true;$('calibProgress').style.width='0%';calibrationStatus('① 静音を4秒測定中。話さずに待ってください。');lastScore=0;resetEpisode()};
 $('calibrateVoice').onclick=()=>{if(!active||calibration?.phase!=='readyNear'){showError('先に①を測定してください。');return}calibration.phase='near';calibration.start=performance.now();calibration.values=[];$('calibrate').disabled=true;$('calibrateVoice').disabled=true;$('calibProgress').style.width='0%';calibrationStatus('② 近くの会話を4秒測定中。マイクから1〜2mで話し続けてください。');lastScore=0;resetEpisode()};
 $('calibrateFar').onclick=()=>{if(!active||calibration?.phase!=='readyFar'){showError('先に①②を測定してください。');return}calibration.phase='far';calibration.start=performance.now();calibration.values=[];$('calibrate').disabled=true;$('calibrateFar').disabled=true;$('calibProgress').style.width='0%';calibrationStatus('③ 離れた会話を4秒測定中。教室後方など普段の位置で話し続けてください。');lastScore=0;resetEpisode()};
+document.getElementById('neighborCheck').onclick=()=>{
+ if(!active||monitorScope!=='group'||calibration?.phase!=='readyFar'){showError('グループ監視で①②を終えてから測定してください。');return}
+ calibration.phase='neighbor';calibration.start=performance.now();calibration.values=[];
+ $('calibrate').disabled=true;$('calibrateFar').disabled=true;document.getElementById('neighborCheck').disabled=true;
+ $('calibProgress').style.width='0%';
+ calibrationStatus('隣の班だけで4秒間会話してください。自分の班は完全に静かにし、隣班の音が拾われるか測定します。');
+ lastScore=0;resetEpisode();
+};
 $('micRefresh').onclick=refreshMicrophones;
 $('micSelect').onchange=async()=>{selectedMicId=$('micSelect').value;try{localStorage.setItem('vsc-selected-microphone',selectedMicId)}catch{}if(active){stop();await start()}else{$('micDeviceInfo').textContent='マイクを選択しました。「監視を開始」で適用されます。'}};
 $('micFineLess').onclick=()=>{cfg.gain=Math.max(1,Math.round((cfg.gain-.5)*2)/2);sync();save();$('micProfileStatus').textContent='感度を下げました。保存ボタンでこのマイクに記録できます。'};
 $('micFineMore').onclick=()=>{cfg.gain=Math.min(24,Math.round((cfg.gain+.5)*2)/2);sync();save();$('micProfileStatus').textContent='感度を上げました。保存ボタンでこのマイクに記録できます。'};
 $('micFineSave').onclick=()=>{if(!active){showError('マイク開始後に保存してください。');return}saveMicProfile('手動調整済み')};
-$('micProfileClear').onclick=()=>{try{if(micDeviceProfile)localStorage.removeItem(micProfileKey())}catch{}calibration=null;$('calibrate').disabled=false;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;setMode('quiet');$('micProfileStatus').textContent='このマイクの補正を解除しました。厳格モードへ戻しました。'};
+$('micProfileClear').onclick=()=>{try{if(micDeviceProfile)localStorage.removeItem(micProfileKey())}catch{}calibration=null;$('calibrate').disabled=false;$('calibrateVoice').disabled=true;$('calibrateFar').disabled=true;document.getElementById('neighborCheck').disabled=true;setMode('quiet');$('micProfileStatus').textContent='このマイクの補正を解除しました。厳格モードへ戻しました。'};
 refreshMicrophones();
 $('defaults').onclick=()=>{cfg={smooth:.08,gain:15,alert:true,alertdelay:0,quietReset:.6,repeatInterval:0,volume:.85,warningSound:"alarm",timerSound:"chime",timerVolume:.8,timerSoundEnabled:true,soundGuardTail:1};setMode('ultra');$('calibText').textContent='初期設定に戻しました'};$('full').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.().catch(()=>showError('全画面表示を開始できませんでした。'));else document.exitFullscreen?.()};document.addEventListener('fullscreenchange',()=>{document.body.classList.toggle('fullscreen',!!document.fullscreenElement);$('full').textContent=document.fullscreenElement?'⤢ 全画面終了':'⛶ 全画面'});window.addEventListener('pagehide',()=>{if(active)stop();if(demo)stopDemo()});if(!Number.isFinite(cfg.low)||!Number.isFinite(cfg.high)){cfg.low=modes[mode].low;cfg.high=modes[mode].high}document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));$('modetitle').textContent=modes[mode].title;$('modehelp').textContent=modes[mode].hint;sync();showClock();setCountDisplay();document.body.dataset.signal='idle';offerRecovery();
 // Classroom remote-sync extension — shares the main application's state.
@@ -686,6 +723,7 @@ function updateMonitorScopeUI(){
 function changeMonitorScope(scope,group){
  if(remoteOnline)remoteDisconnect();
  if(active)stop();
+ document.getElementById('neighborCheck').disabled=true;
  monitorScope=scope;monitorGroup=group;
  updateMonitorScopeUI();
 }
