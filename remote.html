@@ -63,6 +63,13 @@ header .subhead{font-size:13px;color:#82d6b0;font-weight:800;letter-spacing:.06e
 <div class="timerEditor"><div><label for="min">分</label><input class="smallinput" type="number" id="min" value="15" min="0" max="99"></div><div><label for="sec">秒</label><input class="smallinput" type="number" id="sec" value="0" min="0" max="59"></div><button class="primaryAction" data-command="set_start">▶ タイマー開始</button></div>
 <div class="timerControls"><button class="secondary" data-command="pause">Ⅱ 一時停止</button><button class="secondary" data-command="resume">▶ 再開</button><button class="secondary" data-command="reset">↺ リセット</button></div>
 <p class="muted">教室側のタイマーを遠隔操作します。通信が切れても教室側のタイマーは動作します。</p></section></div>
+<section class="panel" id="securityPanel">
+<h2>🔐 教室の接続キー・操作ロック設定</h2>
+<p class="muted">接続中の教室だけに反映します。教室キー変更後は、教室端末で新しいキーを入力して接続し直してください。</p>
+<div class="two">
+<div><label for="newRoomKey">新しい教室キー（4〜128文字）</label><input id="newRoomKey" type="password" autocomplete="new-password" placeholder="新しい教室キー" style="width:100%"><button id="changeRoomKey" class="secondary" style="margin-top:9px">教室キーを更新</button><p class="muted">「0000」のような短いキーは推測されやすいため非推奨です。管理者キーと同じ文字列は使えません。</p></div>
+<div><label for="newGroupPin">グループ画面ロック解除PIN（4〜8桁）</label><input id="newGroupPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="新しい解除PIN" style="width:100%"><button id="changeGroupPin" class="secondary" style="margin-top:9px">解除PINを班端末へ送信</button><p class="muted">接続中のグループ端末に反映。オフラインの端末には届きません。</p></div>
+</div><p id="securityReply" role="status" class="muted"></p></section>
 <section class="panel"><h2>◉ 送信履歴・実行状況</h2><div id="commands" class="muted">履歴なし</div><p class="muted">送信済みだけでは実行完了ではありません。教室からの受信確認で「実行済み」になります。</p></section>
 </main><script>
 (()=>{'use strict';const $=id=>document.getElementById(id);let polling=null,configured=false,endpoint='',room='',token='',last=null,requests=0;const keyName='vsc-remote-config';try{const saved=JSON.parse(sessionStorage.getItem(keyName)||'{}');$('endpoint').value=saved.endpoint||$('endpoint').defaultValue;$('room').value=saved.room||$('room').defaultValue;$('key').value=saved.token||''}catch{}
@@ -94,6 +101,28 @@ async function refresh(){if(!configured)return;try{const d=await api('sync');las
 $('connect').onclick=async()=>{endpoint=$('endpoint').value.trim().replace(/\/$/,'');room=$('room').value.trim();token=$('key').value.trim();if(!/^https:\/\/[^/]+$/.test(endpoint)||!/^[a-zA-Z0-9_-]{1,50}$/.test(room)||!token){$('reply').textContent='HTTPSのWorker URL・教室ID・管理者キーを入力してください';return}configured=true;clearInterval(polling);try{await api('sync');sessionStorage.setItem(keyName,JSON.stringify({endpoint,room,token}));$('reply').textContent='接続しました';updateConnectionInfo();connectionDetails.open=false;await refresh();polling=setInterval(refresh,1700)}catch(e){configured=false;updateConnectionInfo();connectionDetails.open=true;$('reply').textContent='接続失敗：'+e.message}};
 $('disconnect').onclick=()=>{configured=false;clearInterval(polling);last=null;updateConnectionInfo();connectionDetails.open=true;$('live').textContent='● 切断済み';$('reply').textContent='切断しました'};
 document.querySelectorAll('[data-command]').forEach(button=>button.onclick=async()=>{if(!configured){$('reply').textContent='先に接続してください';return}const type=button.dataset.command,body={type};if(type==='instruction'||type==='notice'){body.text=$('message').value.trim();if(!body.text){$('reply').textContent='メッセージを入力してください';return}}if(type==='set_start'){const m=Number($('min').value),s=Number($('sec').value);if(!Number.isInteger(m)||!Number.isInteger(s)||m<0||m>99||s<0||s>59||m*60+s<1){$('reply').textContent='時間を1秒〜99分59秒で指定してください';return}body.seconds=m*60+s}button.disabled=true;try{const r=await api('command','POST',body);$('reply').textContent='命令送信済み（ID: '+r.id.slice(0,8)+'）・教室の実行確認待ち';await refresh()}catch(e){$('reply').textContent='送信失敗：'+e.message}finally{button.disabled=false}});
+function securityStatus(message){$('securityReply').textContent=message}
+$('changeRoomKey').onclick=async()=>{
+ if(!configured){securityStatus('まず管理者キーで接続してください。');return}
+ const key=$('newRoomKey').value;
+ if(key.length<4||key.length>128){securityStatus('教室キーは4〜128文字にしてください。');return}
+ if(key.length<8&&!confirm('短い教室キーは推測されやすくなります。それでも変更しますか？'))return;
+ if(!confirm('接続先「'+room+'」の教室キーを変更します。現在の教室端末は再接続が必要です。よろしいですか？'))return;
+ const button=$('changeRoomKey');button.disabled=true;
+ try{await api('room-key','POST',{newKey:key});$('newRoomKey').value='';securityStatus('✓ '+room+' の教室キーを変更しました。教室端末に新しいキーを入力して再接続してください。')}
+ catch(e){securityStatus('変更できません：'+e.message+'。Worker v3.2が反映されているか確認してください。')}
+ finally{button.disabled=false}
+};
+$('changeGroupPin').onclick=async()=>{
+ if(!configured){securityStatus('まず管理者キーで接続してください。');return}
+ const pin=$('newGroupPin').value;
+ if(!/^[0-9]{4,8}$/.test(pin)){securityStatus('解除PINは4〜8桁の数字にしてください。');return}
+ if(!/-g[0-9]+$/.test(room)){securityStatus('解除PINの送信は「class-1-g1」のような班別教室IDで接続してください。');return}
+ const button=$('changeGroupPin');button.disabled=true;
+ try{await api('command','POST',{type:'set_pin',text:pin});$('newGroupPin').value='';securityStatus('✓ PIN変更を送信しました。下の送信状況が「実行済み」になると反映完了です。');await refresh()}
+ catch(e){securityStatus('送信できません：'+e.message+'。班端末が接続中か、Worker v3.2が反映されているか確認してください。')}
+ finally{button.disabled=false}
+};
 setInterval(paint,900);
 })();
 </script></body></html>
