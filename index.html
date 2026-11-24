@@ -60,6 +60,15 @@ button:hover{background:#1b6d4d}
 footer{margin:24px 0 0;padding-top:17px;border-top:1px solid #1f4a3a;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-size:12px;color:#6eaa8e}
 @media(max-width:1000px){.entryGrid{grid-template-columns:1fr 1fr}.entry.teacher{grid-column:1/-1;min-height:210px}.entry.teacher .teacherLinks{max-width:480px}.entry{min-height:245px}#qrGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){header{align-items:start}.topTag{display:none}.intro{display:block}.intro p{margin-top:6px}.entryGrid,#qrGrid{grid-template-columns:1fr}.entry.teacher{grid-column:auto}.entry{min-height:210px;padding:19px}.symbol{margin-bottom:10px}.entry p{margin-bottom:16px}.teacherLinks{max-width:none}.qrCard{padding:14px}.groupHeading{align-items:start}.config{gap:8px}}
+
+/* Single shared QR for all student groups */
+#qrGrid{display:flex;justify-content:center}
+#qrGrid .commonQr{width:min(100%,510px);padding:24px;gap:15px;border-color:#5cdaa2;background:linear-gradient(145deg,#103d2b,#061d15)}
+#qrGrid .commonQr h3{font-size:clamp(23px,3vw,31px)}
+#qrGrid .commonQr .qrFrame{width:250px;height:250px;padding:15px}
+#qrGrid .commonQr .qrFrame canvas,#qrGrid .commonQr .qrFrame img{width:220px;height:220px}
+#qrGrid .commonQr p{font-size:14px;color:#bdf8d6}
+#qrGrid .commonQr a{font-size:15px}
 </style>
 </head>
 <body>
@@ -83,8 +92,8 @@ footer{margin:24px 0 0;padding-top:17px;border-top:1px solid #1f4a3a;display:fle
  <article class="entry group">
  <div class="step">02 / GROUP</div><div class="symbol">▦</div>
  <h3>班別監視</h3>
- <p>各班の中心に児童用端末を設置。班数を設定し、児童端末で開くQRコードを一括表示します。</p>
- <button type="button" id="openGroupSetup">▦ 班別QRコードを表示</button>
+ <p>各班の中心に児童用端末を設置。班数を設定して共通QRを1つ表示。児童は読み取り後に自分の班を選択します。</p>
+ <button type="button" id="openGroupSetup">▦ 共通QRコードを表示</button>
  </article>
  <article class="entry teacher">
  <div class="step">03 / TEACHER</div><div class="symbol">⌘</div>
@@ -95,18 +104,18 @@ footer{margin:24px 0 0;padding-top:17px;border-top:1px solid #1f4a3a;display:fle
 </div>
 <section class="groupPanel" id="groupPanel" hidden>
  <div class="groupHeading">
-  <div><h2>▦ 班別監視 / 接続QRコード</h2><p>QRをそれぞれの班の端末で読み取ってください</p></div>
+  <div><h2>▦ 班別監視 / 接続QRコード</h2><p>全班共通のQRを読み取り、児童端末で班番号を選んでください</p></div>
   <button id="closeGroupSetup" type="button" aria-label="QR設定を閉じる">✕ 閉じる</button>
  </div>
  <div class="config">
   <label>基本教室ID<input id="baseRoom" value="class-1" maxlength="42" autocomplete="off"></label>
   <label>班の数<select id="groupCount"><option value="2">2班</option><option value="3">3班</option><option value="4">4班</option><option value="5">5班</option><option value="6" selected>6班</option><option value="7">7班</option><option value="8">8班</option><option value="9">9班</option><option value="10">10班</option><option value="11">11班</option><option value="12">12班</option></select></label>
-  <button id="buildQrs" type="button">QRを更新</button>
-  <button id="copyAllLinks" type="button">班別URLをまとめてコピー</button>
+  <button id="buildQrs" type="button">共通QRを更新</button>
+  <button id="copyAllLinks" type="button">共通URLをコピー</button>
   <a id="teacherGroupLaunch" href="groups.html" style="color:#9bf1c2;font-size:13px;margin-left:auto">教師用・全班一覧を開く ↗</a>
  </div>
  <div id="qrGrid" aria-live="polite"></div>
- <div id="qrInfo">各班のQRには <strong>班番号と教室ID</strong> だけが含まれます。児童側でマイクの許可と「監視を開始」を操作してください。教室キーはQRに含めません。</div>
+ <div id="qrInfo">共通QRには <strong>教室IDと班数</strong> だけが含まれます。児童端末で班を選んだ後、マイクの許可と「監視を開始」を操作してください。教室キーはQRに含めません。</div>
  <div id="qrMessage" role="status"></div>
 </section>
 <footer><span>VOICE SIGNAL CLASSROOM · LOCAL AUDIO MONITOR</span><span>音声・カメラ映像はサーバーへ送信しません</span></footer>
@@ -125,38 +134,36 @@ footer{margin:24px 0 0;padding-top:17px;border-top:1px solid #1f4a3a;display:fle
   try{localStorage.setItem('vsc-home-group',JSON.stringify({base:room,count:n}))}catch{}
   return {room,n};
  }
- function groupLink(room,i){
-  const url=new URL('classroom.html',location.href);
-  url.searchParams.set('mode','group');url.searchParams.set('group',String(i));url.searchParams.set('base',room);
+ function sharedLink(room,n){
+  const url=new URL('join.html',location.href);
+  url.searchParams.set('base',room);url.searchParams.set('count',String(n));
   return url.href;
  }
  function renderQrs(){
   const v=cleanConfig();if(!v)return;
   grid.replaceChildren();msg.textContent='';
-  const lines=[];
-  for(let i=1;i<=v.n;i++){
-   const url=groupLink(v.room,i);lines.push(i+'班：'+url);
-   const card=document.createElement('article');card.className='qrCard';
-   const head=document.createElement('h3');head.textContent=i+'班';
-   const rid=document.createElement('span');rid.className='roomId';rid.textContent=v.room+'-g'+i;
-   const frame=document.createElement('div');frame.className='qrFrame';frame.setAttribute('aria-label',i+'班の接続QR');
-   if(typeof QRCode==='undefined'){frame.textContent='QRコードを読み込めませんでした'}
-   else new QRCode(frame,{text:url,width:170,height:170,colorDark:'#071b13',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
-   const note=document.createElement('p');note.textContent='児童用端末で読み取る';
-   const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.textContent='この班の画面を開く';
-   const copy=document.createElement('button');copy.type='button';copy.textContent='接続URLをコピー';
-   copy.onclick=async()=>{try{await navigator.clipboard.writeText(url);msg.textContent=i+'班のURLをコピーしました'}catch{msg.textContent='コピーできない場合は「この班の画面を開く」を利用してください'}};
-   card.append(head,rid,frame,note,link,copy);grid.append(card);
-  }
+  const url=sharedLink(v.room,v.n),card=document.createElement('article');
+  card.className='qrCard commonQr';
+  const head=document.createElement('h3');head.textContent='全班共通QRコード';
+  const rid=document.createElement('span');rid.className='roomId';rid.textContent=v.room+'　／　'+v.n+'班';
+  const frame=document.createElement('div');frame.className='qrFrame';frame.setAttribute('aria-label','児童用・全班共通QRコード');
+  if(typeof QRCode==='undefined'){frame.textContent='QRコードを読み込めませんでした'}
+  else new QRCode(frame,{text:url,width:220,height:220,colorDark:'#071b13',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  const note=document.createElement('p');note.textContent='① QRを読む → ② 自分の班を選ぶ → ③ 監視開始';
+  const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.textContent='児童用・班選択画面を開く';
+  const copy=document.createElement('button');copy.type='button';copy.textContent='共通URLをコピー';
+  copy.onclick=async()=>{try{await navigator.clipboard.writeText(url);msg.textContent='共通URLをコピーしました'}catch{msg.textContent='コピーできない場合は「班選択画面を開く」を利用してください'}};
+  card.append(head,rid,frame,note,link,copy);grid.append(card);
   $('teacherGroupLaunch').href='groups.html?base='+encodeURIComponent(v.room)+'&count='+v.n;
   $('classroomLaunch').href='classroom.html?mode=classroom&base='+encodeURIComponent(v.room);
-  panel.dataset.links=lines.join('\n');
+  panel.dataset.link=url;
  }
  $('openGroupSetup').onclick=()=>{panel.hidden=false;renderQrs();panel.scrollIntoView({behavior:'smooth',block:'start'})};
  $('closeGroupSetup').onclick=()=>panel.hidden=true;
  $('buildQrs').onclick=renderQrs;
  base.addEventListener('change',renderQrs);count.addEventListener('change',renderQrs);
- $('copyAllLinks').onclick=async()=>{const v=cleanConfig();if(!v)return;const lines=Array.from({length:v.n},(_,i)=>(i+1)+'班：'+groupLink(v.room,i+1)).join('\n');try{await navigator.clipboard.writeText(lines);msg.textContent='班別URLをまとめてコピーしました'}catch{msg.textContent='コピーできませんでした'}};
+ $('copyAllLinks').onclick=async()=>{const v=cleanConfig();if(!v)return;try{await navigator.clipboard.writeText(sharedLink(v.room,v.n));msg.textContent='共通URLをコピーしました'}catch{msg.textContent='コピーできませんでした'}};
+
 })();
 </script>
 </body></html>
