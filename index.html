@@ -227,6 +227,23 @@ body.fullscreen .monitorModePanel{padding:3px 9px;margin-top:3px;flex-shrink:0}
 body.fullscreen .monitorModePanel .modeHelp{display:none}
 body.fullscreen .monitorModeRow{margin-top:0}
 @media(max-width:700px){.monitorModeRow{gap:7px}.monitorModePanel .modeTitle{font-size:11px}}
+
+.groupLockOverlay[hidden]{display:none!important}
+.groupLockOverlay{position:fixed;inset:0;background:#000;z-index:1000;display:flex;align-items:center;justify-content:center;color:#a9d4bf;padding:20px}
+.groupLockBackdrop{text-align:center;width:min(420px,100%);display:flex;flex-direction:column;align-items:center;gap:10px}
+.groupLockIcon{font-size:44px;color:#234439}
+.groupLockBackdrop h2{font-size:clamp(17px,2.1vw,25px);letter-spacing:.16em;color:#7eab94;font-weight:950;margin:2px 0}
+.groupLockBackdrop p{font-size:13px;margin:0;max-width:400px}
+.groupLockField{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:270px;margin-top:12px}
+.groupLockField label{font-size:13px;color:#a9d9bf}
+.groupLockField input{width:100%;font-size:18px;letter-spacing:.2em;text-align:center;padding:10px;background:#03140f;color:white;border:1px solid #3a765b;border-radius:6px}
+.groupLockField button{width:100%;border-radius:6px;background:#164e39;color:#dcffea}
+#groupLockFeedback{min-height:1.5em;color:#ffcf89;font-weight:750}
+.groupLockTip{color:#4c7863;font-size:11px!important}
+.groupLockOverlay.dimmed{background:#000}
+.groupLockOverlay.dimmed .groupLockBackdrop{opacity:.35;transition:opacity .15s}
+.groupLockOverlay.dimmed:focus-within .groupLockBackdrop,.groupLockOverlay.dimmed .groupLockBackdrop:hover{opacity:1}
+@media(max-width:660px){.groupLockBackdrop{gap:7px}.groupLockIcon{font-size:28px}}
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="cameraToggle" type="button" aria-pressed="false">📷 カメラ ON</button><button id="teacherQRButton" type="button">▦ 教師端末QR</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
@@ -239,6 +256,18 @@ body.fullscreen .monitorModeRow{margin-top:0}
  <div class="modeHelp" id="monitorModeHelp">教室全体の音を1台のマイクで監視します。</div>
 </section><div class="remoteDock" id="remoteDock"><details><summary>◉ REMOTE / 遠隔接続　<span id="remoteStatus">● 遠隔接続なし</span></summary><div class="remoteControls"><label>Worker API URL<input id="remoteEndpoint" value="https://voice-signal-remote.schoolhub-lab.workers.dev" placeholder="https://....workers.dev" autocomplete="url"></label><label>教室ID<input id="remoteRoom" value="class-1" autocomplete="off"></label><label>教室キー<input id="remoteKey" type="password" placeholder="CLASSROOM_KEY" autocomplete="off"></label><button id="remoteConnect">接続</button><button id="remoteDisconnect">切断</button><a href="remote.html" target="_blank" rel="noopener" style="color:#97efbf">職員室モード ↗</a></div><small>教室キーはページ内に埋め込みません。入力後はこのタブのセッションに保存します。</small></details></div><div class="remoteCurrent" id="remoteInstruction" hidden></div>
 
+<div id="groupLockOverlay" class="groupLockOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="groupLockTitle">
+ <div class="groupLockBackdrop">
+  <div class="groupLockIcon">▣</div><h2 id="groupLockTitle">GROUP MONITOR</h2>
+  <p id="groupLockInfo">グループ監視を継続中</p>
+  <div class="groupLockField"><label id="groupPinLabel" for="groupLockPin">ロック解除PIN</label>
+   <input id="groupLockPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="4〜8桁の数字">
+   <button id="groupLockAction" type="button">ロック解除</button>
+  </div>
+  <p id="groupLockFeedback" role="status"></p>
+  <p class="groupLockTip">画面の暗転は擬似表示です。音量判定・警告・教師端末への状態送信は継続します。</p>
+ </div>
+</div>
 <div id="teacherQrModal" class="teacherQrModal" hidden role="dialog" aria-modal="true" aria-labelledby="teacherQrTitle">
  <div class="teacherQrCard">
   <h2 id="teacherQrTitle">▦ 教師端末と接続</h2>
@@ -285,7 +314,7 @@ body.fullscreen .monitorModeRow{margin-top:0}
 <button id="calibrateVoice" type="button" disabled>② 1〜2mの会話</button>
 <button id="calibrateFar" type="button" disabled>③ 離れた会話（任意）</button>
 </div>
-<div class="buttonrow" id="groupOnlyTools" hidden style="margin-top:6px"><button type="button" id="neighborCheck" disabled>④ 隣の班だけ会話（4秒）</button><button type="button" id="micLogExport">マイクON/OFF履歴CSV</button><span id="neighborCheckStatus" style="font-size:11px">①②の補正後に隣班の声を確認できます</span></div>
+<div class="buttonrow" id="groupOnlyTools" hidden style="margin-top:6px"><button type="button" id="neighborCheck" disabled>④ 隣の班だけ会話（4秒）</button><button type="button" id="micLogExport">マイクON/OFF履歴CSV</button><button type="button" id="groupLockButton" class="primary">▣ 画面暗転・操作ロック</button><span id="neighborCheckStatus" style="font-size:11px">①②の補正後に隣班の声を確認できます</span></div>
 <div style="height:9px;background:#092d25;border:1px solid #286b58;border-radius:8px;overflow:hidden;margin:10px 0 5px"><div id="calibProgress" style="height:100%;width:0;background:#66eab3;transition:width .13s"></div></div>
 <div id="calibLive" class="small" style="color:#a0f4ce">マイク待機中</div>
 <div id="calibText" class="value" role="status" style="display:block;white-space:pre-wrap;margin-top:7px">①静かな教室を測り、②1〜2mから普通の声で話してください。離れた場所も測る場合は③を実行します。</div>
@@ -722,6 +751,7 @@ function updateMonitorScopeUI(){
  try{localStorage.setItem('vsc-monitor-scope',JSON.stringify({scope:monitorScope,group:monitorGroup,base:baseClassRoom}))}catch{}
 }
 function changeMonitorScope(scope,group){
+ resetLock();
  if(remoteOnline)remoteDisconnect();
  if(active)stop();
  document.getElementById('neighborCheck').disabled=true;
@@ -732,6 +762,58 @@ document.querySelectorAll('[name=monitorScope]').forEach(x=>x.addEventListener('
 groupSelect.addEventListener('change',()=>changeMonitorScope('group',Number(groupSelect.value)||1));
 baseRoomInput.addEventListener('change',()=>{const v=baseRoomInput.value.trim();if(!/^[A-Za-z0-9_-]{1,42}$/.test(v)){showError('教室IDは英数字・ハイフン・アンダーバーで42文字以内です');baseRoomInput.value=baseClassRoom;return}baseClassRoom=v;changeMonitorScope(monitorScope,monitorGroup)});
 updateMonitorScopeUI();
+
+
+/* Local, session-only touch guard for group monitoring. Not an OS-level kiosk lock. */
+const lockUi={overlay:document.getElementById('groupLockOverlay'),pin:document.getElementById('groupLockPin'),button:document.getElementById('groupLockAction'),title:document.getElementById('groupLockTitle'),info:document.getElementById('groupLockInfo'),label:document.getElementById('groupPinLabel'),feedback:document.getElementById('groupLockFeedback')};
+let groupLockPin='',groupLockMode='idle',groupLockTries=0,groupLockCooldown=0;
+function resetLock(){
+ groupLockPin='';groupLockMode='idle';groupLockTries=0;groupLockCooldown=0;
+ lockUi.overlay.hidden=true;lockUi.overlay.classList.remove('dimmed');lockUi.pin.value='';
+}
+function lockSetup(){
+ if(monitorScope!=='group'){showError('グループ監視モードでのみ使用できます。');return}
+ if(!active){showError('マイクの監視を開始してから画面ロックしてください。');return}
+ groupLockMode='setup';groupLockPin='';groupLockTries=0;groupLockCooldown=0;
+ lockUi.title.textContent='画面暗転・操作ロック';
+ lockUi.info.textContent=monitorGroup+'班：マイク監視を継続しながら画面を暗転します。解除するための4〜8桁のPINを決めてください。';
+ lockUi.label.textContent='解除PINを設定（4〜8桁）';
+ lockUi.button.textContent='暗転してロック';
+ lockUi.feedback.textContent='PINはこのタブの終了までメモリ上だけで保持します。';
+ lockUi.overlay.classList.remove('dimmed');lockUi.overlay.hidden=false;lockUi.pin.value='';lockUi.pin.focus();
+}
+function lockEngage(pin){
+ groupLockPin=pin;groupLockMode='locked';lockUi.overlay.classList.add('dimmed');lockUi.title.textContent='GROUP MONITOR';
+ lockUi.info.textContent=monitorGroup+'班：マイク監視中';
+ lockUi.label.textContent='ロック解除PIN';
+ lockUi.button.textContent='ロック解除';
+ lockUi.pin.value='';lockUi.feedback.textContent='';
+ lockUi.pin.blur();
+}
+function lockSubmit(){
+ const entered=lockUi.pin.value;
+ if(groupLockMode==='setup'){
+  if(!/^\d{4,8}$/.test(entered)){lockUi.feedback.textContent='4〜8桁の数字を入力してください。';return}
+  lockEngage(entered);return;
+ }
+ if(groupLockMode!=='locked')return;
+ if(Date.now()<groupLockCooldown){lockUi.feedback.textContent='連続した入力を制限中です。少ししてから入力してください。';return}
+ if(entered===groupLockPin){resetLock();return}
+ groupLockTries++;lockUi.pin.value='';
+ if(groupLockTries%5===0){groupLockCooldown=Date.now()+30000;lockUi.feedback.textContent='PINが一致しません。30秒後に再試行してください。'}
+ else lockUi.feedback.textContent='PINが一致しません。';
+}
+document.getElementById('groupLockButton').onclick=lockSetup;
+lockUi.button.onclick=lockSubmit;
+lockUi.pin.addEventListener('keydown',e=>{if(e.key==='Enter')lockSubmit();e.stopPropagation()});
+lockUi.overlay.addEventListener('keydown',e=>{
+ if(e.key==='Tab'){
+  const els=[lockUi.pin,lockUi.button],i=els.indexOf(document.activeElement);
+  if(e.shiftKey&&i===0){e.preventDefault();els[1].focus()}
+  else if(!e.shiftKey&&i===1){e.preventDefault();els[0].focus()}
+ }
+ if(e.key==='Escape')e.preventDefault();
+});
 
 /* Group microphone state history is local to each device, not an audio recording. */
 let micOnOffLog=[];
