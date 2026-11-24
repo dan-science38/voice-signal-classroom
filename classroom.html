@@ -244,6 +244,23 @@ body.fullscreen .monitorModeRow{margin-top:0}
 .groupLockOverlay.dimmed .groupLockBackdrop{opacity:.35;transition:opacity .15s}
 .groupLockOverlay.dimmed:focus-within .groupLockBackdrop,.groupLockOverlay.dimmed .groupLockBackdrop:hover{opacity:1}
 @media(max-width:660px){.groupLockBackdrop{gap:7px}.groupLockIcon{font-size:28px}}
+
+.groupStartOverlay[hidden]{display:none!important}
+.groupStartOverlay{position:fixed;inset:0;z-index:1200;background:#020b08f5;display:flex;justify-content:center;align-items:center;padding:clamp(12px,3vw,24px);overflow:auto}
+.groupStartCard{width:min(570px,100%);border:2px solid #58d79e;border-radius:17px;background:linear-gradient(155deg,#0d392b,#041a13);padding:clamp(20px,4vw,35px);color:#dfffe9;box-shadow:0 10px 48px #000b;display:flex;flex-direction:column;gap:13px}
+.groupStartEyebrow{letter-spacing:.08em;font-size:12px;color:#7de5ac;font-weight:900}
+.groupStartCard h2{color:#beffe0;font-size:clamp(23px,4vw,36px);margin:0;line-height:1.25}
+.groupStartIdentity{font-size:clamp(18px,2.7vw,25px);font-weight:950;color:#8ef8bf}
+.groupStartDescription{font-size:15px;line-height:1.75;margin:0;color:#b8dec8}
+.groupStartPrimary{font-size:clamp(16px,2.9vw,21px);padding:17px 12px;min-height:62px;border:2px solid #8cf8bf;border-radius:9px;background:#18784f;color:#fff;font-weight:950;cursor:pointer}
+.groupStartPrimary:disabled,.groupStartActions button:disabled{opacity:.55;cursor:progress}
+.groupStartStatus{background:#071f18;border:1px solid #2e7957;border-radius:8px;padding:13px;min-height:47px;font-size:14px;font-weight:800;white-space:pre-wrap;line-height:1.65;color:#b6f6d0}
+.groupStartActions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px}
+.groupStartActions button{border-radius:7px;padding:10px 12px;background:#11513b;border:1px solid #49b385;font-weight:850}
+.groupStartActions button[hidden]{display:none!important}
+.groupStartActions a{color:#a8f6cb;font-size:13px;padding:10px}
+.groupStartNote{font-size:12px;color:#84bca0;margin:0;line-height:1.6}
+@media(max-width:550px){.groupStartCard{gap:10px}.groupStartDescription{font-size:14px}.groupStartOverlay{align-items:flex-start}}
 </style></head><body data-signal="idle"><div class="wrap">
 <header class="hudhead"><div><div class="brand">⌁ VOICE SIGNAL CLASSROOM</div><a href="./" style="display:inline-block;margin-top:3px;color:#98ebc4;font-size:12px;text-decoration:none">⌂ ホームへ戻る</a><div class="headsub">教室の静粛監視システム / NOISE CONTROL SYSTEM</div></div><div class="actions"><button id="toggleMic" class="primary">🎤 監視を開始</button><button id="demo">▶ デモ</button><button id="cameraToggle" type="button" aria-pressed="false">📷 カメラ ON</button><button id="teacherQRButton" type="button">▦ 教師端末QR</button><button id="full">⛶ 全画面</button></div></header>
 <div id="toast" class="toast" role="alert"></div>
@@ -256,6 +273,23 @@ body.fullscreen .monitorModeRow{margin-top:0}
  <div class="modeHelp" id="monitorModeHelp">教室全体の音を1台のマイクで監視します。</div>
 </section><div class="remoteDock" id="remoteDock"><details><summary>◉ REMOTE / 遠隔接続　<span id="remoteStatus">● 遠隔接続なし</span></summary><div class="remoteControls"><label>Worker API URL<input id="remoteEndpoint" value="https://voice-signal-remote.schoolhub-lab.workers.dev" placeholder="https://....workers.dev" autocomplete="url"></label><label>教室ID<input id="remoteRoom" value="class-1" autocomplete="off"></label><label>教室キー<input id="remoteKey" type="password" placeholder="CLASSROOM_KEY" autocomplete="off"></label><button id="remoteConnect">接続</button><button id="remoteDisconnect">切断</button><a href="remote.html" target="_blank" rel="noopener" style="color:#97efbf">職員室モード ↗</a></div><small>教室キーはページ内に埋め込みません。入力後はこのタブのセッションに保存します。</small></details></div><div class="remoteCurrent" id="remoteInstruction" hidden></div>
 
+<div id="groupStartOverlay" class="groupStartOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="groupStartTitle">
+ <section class="groupStartCard">
+  <div class="groupStartEyebrow">VOICE SIGNAL / GROUP MONITOR</div>
+  <h2 id="groupStartTitle">班別監視を始める</h2>
+  <div id="groupStartIdentity" class="groupStartIdentity">選択した班</div>
+  <p class="groupStartDescription">端末を班の中心に置き、ボタンを押してください。マイクとカメラの使用許可が表示されたら「許可」を選びます。</p>
+  <button id="groupStartBoth" class="groupStartPrimary" type="button">🎤 📷 マイク・カメラをONにして開始</button>
+  <div id="groupStartStatus" class="groupStartStatus" role="status" aria-live="polite">開始前：マイクOFF / カメラOFF</div>
+  <div class="groupStartActions">
+   <button id="groupStartRetryCamera" type="button" hidden>📷 カメラを再試行</button>
+   <button id="groupStartRetryMic" type="button" hidden>🎤 マイクを再試行</button>
+   <button id="groupStartContinue" type="button" hidden>監視画面を開く</button>
+   <a id="groupStartBack" href="join.html">班を選び直す</a>
+  </div>
+  <p class="groupStartNote">カメラ映像はこの端末内だけに表示します。録画・映像送信はありません。カメラなしでもマイク監視を開始できます。</p>
+ </section>
+</div>
 <div id="groupLockOverlay" class="groupLockOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="groupLockTitle">
  <div class="groupLockBackdrop">
   <div class="groupLockIcon">▣</div><h2 id="groupLockTitle">GROUP MONITOR</h2>
@@ -526,14 +560,14 @@ function sample(now){if(!active)return;lastSampleWall=Date.now();
   }
   raf=requestAnimationFrame(sample);return;
  }try{render(detected,now)}catch(e){showHealthFault('表示更新エラー');console.error(e);return}raf=requestAnimationFrame(sample)}
-async function start(){
+async function start(providedAudioStream=null){
  if(active||starting)return;
  starting=true;const token=++startToken;clearError();
  $('toggleMic').disabled=true;$('toggleMic').textContent='マイクを接続中…';
  if(!navigator.mediaDevices?.getUserMedia){starting=false;$('toggleMic').disabled=false;$('toggleMic').textContent='🎤 監視を開始';showError('マイクが使えません。HTTPSのページをChromeやEdgeで開いてください。');return}
  let incoming=null,newCtx=null;
  try{
-  incoming=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,...(selectedMicId?{deviceId:{exact:selectedMicId}}:{})},video:false});
+  incoming=providedAudioStream||await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,...(selectedMicId?{deviceId:{exact:selectedMicId}}:{})},video:false});
   if(token!==startToken){incoming.getTracks().forEach(t=>t.stop());return}
   newCtx=new(window.AudioContext||window.webkitAudioContext)();await newCtx.resume();
   if(token!==startToken){incoming.getTracks().forEach(t=>t.stop());newCtx.close().catch(()=>{});return}
@@ -695,13 +729,13 @@ function stopCamera(){
  cameraUi.toggle.textContent='📷 カメラ ON';cameraUi.toggle.setAttribute('aria-pressed','false');cameraUi.toggle.disabled=false;
  cameraUi.size.textContent='⛶';cameraUi.size.setAttribute('aria-label','カメラ映像を拡大');
 }
-async function startCamera(){
+async function startCamera(providedVideoStream=null){
  if(cameraStarting||cameraStream)return;
  if(!navigator.mediaDevices?.getUserMedia){showError('カメラを使えません。HTTPSとブラウザのアクセス許可を確認してください。');return;}
  cameraStarting=true;const token=++cameraGeneration;cameraUi.toggle.disabled=true;cameraUi.toggle.textContent='📷 接続中…';
  let incoming=null;
  try{
-  incoming=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:15,max:24}},audio:false});
+  incoming=providedVideoStream||await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:15,max:24}},audio:false});
   if(token!==cameraGeneration){incoming.getTracks().forEach(t=>t.stop());return;}
   cameraStream=incoming;
   cameraUi.video.srcObject=incoming;
@@ -735,6 +769,7 @@ try{
  baseClassRoom=/^[A-Za-z0-9_-]{1,42}$/.test(saved.base||'')?saved.base:'class-1';
 }catch{}
 // Entry via home-page QR: select group and class room without auto-starting microphone.
+let launchedFromGroupQR=false,groupQRCount=6;
 try{
  const params=new URLSearchParams(location.search);
  const requestedScope=params.get('mode');
@@ -742,7 +777,7 @@ try{
  const requestedBase=params.get('base');
  if(requestedScope==='classroom'){monitorScope='classroom'}
  else if(requestedScope==='group'&&Number.isInteger(requestedGroup)&&requestedGroup>=1&&requestedGroup<=12){
-  monitorScope='group';monitorGroup=requestedGroup;
+  monitorScope='group';monitorGroup=requestedGroup;launchedFromGroupQR=true;groupQRCount=Math.max(2,Math.min(12,Number(params.get('count'))||6));
  }
  if(requestedBase&&/^[A-Za-z0-9_-]{1,42}$/.test(requestedBase))baseClassRoom=requestedBase;
  // Do not retain setup values in the address bar during ordinary classroom use.
@@ -941,6 +976,76 @@ document.getElementById('teacherQrCopy').onclick=async()=>{
 document.getElementById('teacherQrClose').onclick=()=>qrUi.modal.hidden=true;
 qrUi.modal.addEventListener('click',e=>{if(e.target===qrUi.modal)qrUi.modal.hidden=true});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!qrUi.modal.hidden)qrUi.modal.hidden=true});
+
+/* Single-action audio/video onboarding for shared group QR entry. */
+const groupStartUI={
+ overlay:document.getElementById('groupStartOverlay'),
+ identity:document.getElementById('groupStartIdentity'),
+ status:document.getElementById('groupStartStatus'),
+ both:document.getElementById('groupStartBoth'),
+ retryCamera:document.getElementById('groupStartRetryCamera'),
+ retryMic:document.getElementById('groupStartRetryMic'),
+ done:document.getElementById('groupStartContinue'),
+ back:document.getElementById('groupStartBack')
+};
+let groupStartBusy=false;
+function groupStartSummary(note=''){
+ const microphone=active&&!healthFault,camera=!!cameraStream;
+ groupStartUI.status.textContent='マイク：'+(microphone?'ON ✓':'OFF')+'　／　カメラ：'+(camera?'ON ✓':'OFF')+(note?'\n'+note:'');
+ groupStartUI.done.hidden=!microphone;
+ groupStartUI.retryMic.hidden=microphone;
+ groupStartUI.retryCamera.hidden=camera;
+ if(microphone&&camera)groupStartUI.overlay.hidden=true;
+}
+async function beginGroupDevices(){
+ if(groupStartBusy)return;
+ groupStartBusy=true;groupStartUI.both.disabled=true;groupStartUI.both.textContent='接続中… 許可を確認してください';
+ groupStartUI.status.textContent='マイク・カメラの使用許可を確認しています…';
+ let combined=null;
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw Error('HTTPSのChromeまたはEdgeで開いてください');
+  const audioSettings={echoCancellation:false,noiseSuppression:false,autoGainControl:false,...(selectedMicId?{deviceId:{exact:selectedMicId}}:{})};
+  combined=await navigator.mediaDevices.getUserMedia({audio:audioSettings,video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:15,max:24}}});
+  const audioTracks=combined.getAudioTracks(),videoTracks=combined.getVideoTracks();
+  if(audioTracks.length&&videoTracks.length){
+   await Promise.all([start(new MediaStream(audioTracks)),startCamera(new MediaStream(videoTracks))]);
+  }else{
+   if(audioTracks.length)await start(new MediaStream(audioTracks));
+   if(videoTracks.length)await startCamera(new MediaStream(videoTracks));
+  }
+  if(!active||healthFault){
+   if(cameraStream)stopCamera();
+   groupStartSummary('マイクを開始できませんでした。「マイクを再試行」で確認してください。');
+  }else if(!cameraStream)groupStartSummary('マイク監視は開始しました。カメラは再試行できます。');
+  else groupStartSummary();
+ }catch(e){
+  // Video failure must not prevent classroom audio monitoring.
+  groupStartUI.status.textContent='同時に開始できませんでした（'+(e?.name||'エラー')+'）。マイクを開始します…';
+  await start();
+  groupStartSummary(active?'マイク監視を開始しました。カメラは必要なら再試行してください。':'マイクが使えません。ブラウザの使用許可を確認してください。');
+ }finally{
+  groupStartBusy=false;groupStartUI.both.disabled=false;groupStartUI.both.textContent='🎤 📷 マイク・カメラをONにして開始';
+  if(combined&&!active&&!cameraStream)combined.getTracks().forEach(t=>{if(t.readyState==='live')t.stop()});
+ }
+}
+groupStartUI.both.onclick=beginGroupDevices;
+groupStartUI.retryMic.onclick=async()=>{
+ groupStartUI.retryMic.disabled=true;groupStartUI.status.textContent='マイクを再接続しています…';
+ await start();groupStartSummary(active?'マイクが接続されました':'マイクの使用許可を確認してください');
+ groupStartUI.retryMic.disabled=false;
+};
+groupStartUI.retryCamera.onclick=async()=>{
+ groupStartUI.retryCamera.disabled=true;groupStartUI.status.textContent='カメラを再接続しています…';
+ await startCamera();groupStartSummary(cameraStream?'カメラが接続されました':'カメラが使えない場合もマイク監視は継続できます');
+ groupStartUI.retryCamera.disabled=false;
+};
+groupStartUI.done.onclick=()=>groupStartUI.overlay.hidden=true;
+if(launchedFromGroupQR){
+ groupStartUI.identity.textContent=monitorGroup+'班　／　'+baseClassRoom+'-g'+monitorGroup;
+ groupStartUI.back.href='join.html?base='+encodeURIComponent(baseClassRoom)+'&count='+groupQRCount;
+ groupStartUI.overlay.hidden=false;
+ groupStartUI.retryCamera.hidden=true;groupStartUI.retryMic.hidden=true;groupStartUI.done.hidden=true;
+}
 document.getElementById('remoteConnect').onclick=async()=>{remoteDisconnect();remoteEndpoint=remoteUi.endpoint.value.trim().replace(/\/$/,'');remoteRoom=remoteUi.room.value.trim();if(remoteRoom!==groupRoomId()){remoteUi.status.textContent='監視モードの教室IDと接続先が一致しません。モードと番号を確認してください。';return}remoteKey=remoteUi.key.value.trim();if(!/^https:\/\/[^/]+$/.test(remoteEndpoint)||!/^[a-zA-Z0-9_-]{1,50}$/.test(remoteRoom)||!remoteKey){remoteUi.status.textContent='Worker URL・教室ID・教室キーを入力してください';return}try{await remoteRequest('sync');remoteOnline=true;sessionStorage.setItem('vsc-classroom-remote',JSON.stringify({endpoint:remoteEndpoint,room:remoteRoom,key:remoteKey}));await remoteTick();remoteTimer=setInterval(remoteTick,1700)}catch(e){remoteUi.status.textContent='接続失敗：'+e.message}};
 document.getElementById('remoteDisconnect').onclick=remoteDisconnect;
 window.addEventListener('pagehide',remoteDisconnect);
