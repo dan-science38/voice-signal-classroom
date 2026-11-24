@@ -68,7 +68,7 @@ header .subhead{font-size:13px;color:#82d6b0;font-weight:800;letter-spacing:.06e
 <p class="muted">接続中の教室だけに反映します。教室キー変更後は、教室端末で新しいキーを入力して接続し直してください。</p>
 <div class="two">
 <div><label for="newRoomKey">新しい教室キー（4〜128文字）</label><input id="newRoomKey" type="password" autocomplete="new-password" placeholder="新しい教室キー" style="width:100%"><button id="changeRoomKey" class="secondary" style="margin-top:9px">教室キーを更新</button><p class="muted">「0000」のような短いキーは推測されやすいため非推奨です。管理者キーと同じ文字列は使えません。</p></div>
-<div><label for="newGroupPin">グループ画面ロック解除PIN（4〜8桁）</label><input id="newGroupPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="新しい解除PIN" style="width:100%"><button id="changeGroupPin" class="secondary" style="margin-top:9px">解除PINを班端末へ送信</button><p class="muted">接続中のグループ端末に反映。オフラインの端末には届きません。</p></div>
+<div><label for="newGroupPin">グループ画面ロック解除PIN（4〜8桁）</label><input id="newGroupPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="新しい解除PIN" style="width:100%"><button id="changeGroupPin" class="secondary" style="margin-top:9px">解除PINを更新・保存</button><p class="muted">Workerに保存し、オンライン端末には自動反映。オフライン端末も再接続時に反映。</p></div>
 </div><p id="securityReply" role="status" class="muted"></p></section>
 <section class="panel"><h2>◉ 送信履歴・実行状況</h2><div id="commands" class="muted">履歴なし</div><p class="muted">送信済みだけでは実行完了ではありません。教室からの受信確認で「実行済み」になります。</p></section>
 </main><script>
@@ -119,7 +119,7 @@ $('changeGroupPin').onclick=async()=>{
  if(!/^[0-9]{4,8}$/.test(pin)){securityStatus('解除PINは4〜8桁の数字にしてください。');return}
  if(!/-g[0-9]+$/.test(room)){securityStatus('解除PINの送信は「class-1-g1」のような班別教室IDで接続してください。');return}
  const button=$('changeGroupPin');button.disabled=true;
- try{await api('command','POST',{type:'set_pin',text:pin});$('newGroupPin').value='';securityStatus('✓ PIN変更を送信しました。下の送信状況が「実行済み」になると反映完了です。');await refresh()}
+ try{await api('group-pin','POST',{pin});$('newGroupPin').value='';securityStatus('✓ 解除PINを保存しました。班端末が通信すると自動反映されます。オフラインの端末にも再接続時に適用されます。')}
  catch(e){securityStatus('送信できません：'+e.message+'。班端末が接続中か、Worker v3.2が反映されているか確認してください。')}
  finally{button.disabled=false}
 };
