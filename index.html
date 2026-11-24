@@ -751,7 +751,7 @@ function updateMonitorScopeUI(){
  try{localStorage.setItem('vsc-monitor-scope',JSON.stringify({scope:monitorScope,group:monitorGroup,base:baseClassRoom}))}catch{}
 }
 function changeMonitorScope(scope,group){
- resetLock();
+ teacherConfiguredPin='';resetLock();
  if(remoteOnline)remoteDisconnect();
  if(active)stop();
  document.getElementById('neighborCheck').disabled=true;
@@ -766,7 +766,7 @@ updateMonitorScopeUI();
 
 /* Local, session-only touch guard for group monitoring. Not an OS-level kiosk lock. */
 const lockUi={overlay:document.getElementById('groupLockOverlay'),pin:document.getElementById('groupLockPin'),button:document.getElementById('groupLockAction'),title:document.getElementById('groupLockTitle'),info:document.getElementById('groupLockInfo'),label:document.getElementById('groupPinLabel'),feedback:document.getElementById('groupLockFeedback')};
-let groupLockPin='',groupLockMode='idle',groupLockTries=0,groupLockCooldown=0;
+let groupLockPin='',groupLockMode='idle',groupLockTries=0,groupLockCooldown=0,teacherConfiguredPin='';
 function resetLock(){
  groupLockPin='';groupLockMode='idle';groupLockTries=0;groupLockCooldown=0;
  lockUi.overlay.hidden=true;lockUi.overlay.classList.remove('dimmed');lockUi.pin.value='';
@@ -774,6 +774,7 @@ function resetLock(){
 function lockSetup(){
  if(monitorScope!=='group'){showError('グループ監視モードでのみ使用できます。');return}
  if(!active){showError('マイクの監視を開始してから画面ロックしてください。');return}
+ if(teacherConfiguredPin){groupLockMode='locked';groupLockTries=0;groupLockCooldown=0;lockUi.overlay.hidden=false;lockEngage(teacherConfiguredPin);return}
  groupLockMode='setup';groupLockPin='';groupLockTries=0;groupLockCooldown=0;
  lockUi.title.textContent='画面暗転・操作ロック';
  lockUi.info.textContent=monitorGroup+'班：マイク監視を継続しながら画面を暗転します。解除するための4〜8桁のPINを決めてください。';
@@ -868,6 +869,7 @@ async function applyRemote(cmd){if(!cmd||!cmd.id||executedRemoteIds.has(cmd.id))
  remoteUi.status.textContent='● 命令を受信：'+cmd.type;
  try{switch(cmd.type){
  case 'instruction':case 'notice':remoteShow(String(cmd.text||''),cmd.type);break;
+ case 'set_pin':{if(monitorScope!=='group')throw Error('グループ監視以外では設定できません');const pin=String(cmd.text||'');if(!/^[0-9]{4,8}$/.test(pin))throw Error('PINは4〜8桁');teacherConfiguredPin=pin;if(groupLockMode==='locked'){groupLockPin=pin;groupLockTries=0;groupLockCooldown=0;lockUi.feedback.textContent='教師用画面から解除PINが更新されました';}break;}
  case 'set_start':if(!setTimerDuration(cmd.seconds))throw Error('Invalid duration');$('timerToggle').click();break;
  case 'pause':if(timerRunning)$('timerToggle').click();break;
  case 'resume':if(!timerRunning)$('timerToggle').click();break;
