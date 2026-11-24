@@ -1,0 +1,40 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#061e18"><title>VOICE SIGNAL｜班を選択</title>
+<style>
+:root{font-family:system-ui,"Noto Sans JP",sans-serif;color-scheme:dark;color:#dbffea;background:#03130f}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:18px;display:flex;justify-content:center;align-items:center;background:radial-gradient(ellipse at top,#154c37,#03130f 75%)}
+main{width:min(680px,100%);background:#08271e;border:1px solid #50bd8c;border-radius:18px;padding:clamp(22px,4vw,36px);box-shadow:0 8px 35px #0009}
+.brand{font-size:13px;letter-spacing:.07em;color:#80eab6;font-weight:900}
+h1{font-size:clamp(28px,5vw,41px);line-height:1.2;color:#baffdb;margin:14px 0 10px}
+p{color:#aad7bf;line-height:1.7;margin:0 0 18px}
+#roomLabel{font-size:13px;color:#83be9e;background:#103629;border-radius:7px;padding:8px 12px;display:inline-block;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+button{font:900 clamp(18px,3vw,25px)/1.3 inherit;font-family:inherit;font-size:clamp(20px,3.5vw,29px);font-weight:900;min-height:100px;color:#dcffe9;background:#0e4a34;border:2px solid #3fc18b;border-radius:12px;cursor:pointer}
+button:hover,button:focus-visible{outline:3px solid #93ffcb;background:#206b4c}
+footer{border-top:1px solid #28523f;padding-top:15px;margin-top:24px;color:#90bba4;font-size:12px}
+a{color:#9eecc1}
+#error{color:#ffbf8d;font-weight:800}
+@media(max-width:450px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}button{min-height:88px}}
+</style></head><body>
+<main><div class="brand">◈ VOICE SIGNAL CLASSROOM</div><h1>自分の班を選んでください</h1>
+<p>使う端末を班の中心に置いて、<strong>自分の班番号</strong>を押してください。</p>
+<div id="roomLabel"></div><div class="grid" id="groupButtons"></div><p id="error" role="alert"></p>
+<footer>班番号を選択した後、マイクの許可と監視開始を行います。<br>違う班を選んだ場合はこの画面に戻って選び直してください。</footer>
+</main>
+<script>
+(()=>{'use strict';
+ const params=new URLSearchParams(location.search),base=params.get('base')||'class-1',n=Number(params.get('count')||6);
+ const error=document.getElementById('error'),buttons=document.getElementById('groupButtons');
+ if(!/^[A-Za-z0-9_-]{1,42}$/.test(base)||!Number.isInteger(n)||n<2||n>12){error.textContent='教室設定を確認してください。教師にQRコードの再表示をお願いしてください。';return}
+ document.getElementById('roomLabel').textContent='教室ID：'+base+'　／　全'+n+'班';
+ for(let i=1;i<=n;i++){
+  const button=document.createElement('button');button.type='button';button.textContent=i+'班';
+  button.setAttribute('aria-label',i+'班の監視画面を開く');
+  button.onclick=()=>{
+   const dest=new URL('classroom.html',location.href);
+   dest.searchParams.set('mode','group');dest.searchParams.set('group',String(i));dest.searchParams.set('base',base);
+   location.assign(dest.href);
+  };
+  buttons.append(button);
+ }
+})();
+</script></body></html>
