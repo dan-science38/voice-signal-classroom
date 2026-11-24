@@ -882,6 +882,14 @@ async function remoteTick(){if(!remoteOnline||remoteBusy)return;remoteBusy=true;
  const snapshot={level:active&&!healthFault?current:0,signal:active&&!healthFault?(monitorPaused?'paused':signal):'idle',count:warningCount,quietRate:scoreTotal?100*scoreGood/scoreTotal:100,rating:$('rating').textContent,timerRemaining:timerRunning?Math.max(0,Math.ceil((timerEnd-Date.now())/1000)):remaining,timerRunning,mic:active&&!healthFault,paused:monitorPaused,instruction:lastRemoteInstruction,instructionUntil:lastInstructionUntil};
  await remoteRequest('state','POST',snapshot);
  const result=await remoteRequest('sync');
+ if(monitorScope==='group'&&typeof result.groupPin==='string'&&/^[0-9]{4,8}$/.test(result.groupPin)&&teacherConfiguredPin!==result.groupPin){
+  teacherConfiguredPin=result.groupPin;
+  if(groupLockMode==='locked'){
+   groupLockPin=teacherConfiguredPin;
+   groupLockTries=0;groupLockCooldown=0;
+   lockUi.feedback.textContent='教師用画面の解除PIN設定が反映されました';
+  }
+ }
  if(!(result.commands||[]).length){remoteUi.status.textContent='● 職員室と通信中（命令待機）';}
  remoteUi.status.style.color='#74f4b7';
  for(const cmd of result.commands||[])await applyRemote(cmd);
